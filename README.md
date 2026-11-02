@@ -13,8 +13,9 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 ## Current status — alpha
 
 - Version `0.1.0-alpha.1`, **off by default**; opt in via the app's own plugin toggle.
-- Native verification on one macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
-- Known limitation (the one failed check): toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior; a host-side fix is proposed separately upstream and is **not** part of this plugin. Do not expect "disable here, every open window updates immediately".
+- Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
+- Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
+- A host-side fix for that limitation has been developed and verified in a project-local patched Hermes build: **12 of 12 native checks passed** there, including bidirectional live sync between two real windows, rapid toggles, re-enable after disable, restart, uninstall and full content fidelity (identical plugin bytes). It requires a Hermes host change, is **not** part of this repository, and stock Hermes builds keep the limitation until they include such a fix.
 - Dark mode: component-level evidence only. Windows and Linux: untested.
 - Hermes's plugin static scan reports 0 rejections and 1 `app markup selector` review notice.
 
@@ -50,7 +51,7 @@ This generates `plugin/hermes-style-plugin/plugin.js` (plus `build-info.json`) f
    `desktop-plugins` is the application-level directory shared across agent profiles — not a per-profile directory. Keep the folder name `hermes-style-plugin`; it matches the plugin id.
 3. The app watches this directory. The plugin then appears in the app's plugin list (Settings → Capabilities → Plugins, also reachable via the command palette), disabled by default. Enable it with its toggle; disable it the same way; Uninstall on the plugin's detail page removes the directory.
 
-The natively tested candidate shipped `plugin.js`, a `README.md` and `build-info.json` in that directory; the loader consumes `plugin.js`.
+The natively tested candidate shipped `plugin.js`, a `README.md` and `build-info.json` in that directory; the loader consumes `plugin.js`. Building from this repository generates `plugin.js` and `build-info.json`; the `files` list inside `build-info.json` describes the packaged candidate's three-file layout, not the output of a local build.
 
 ## Compatibility
 
