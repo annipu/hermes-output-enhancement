@@ -16,7 +16,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
 - A host-side fix for that limitation has been developed and verified in a project-local patched Hermes build: **12 of 12 native checks passed** there, including bidirectional live sync between two real windows, rapid toggles, re-enable after disable, restart, uninstall and full content fidelity (identical plugin bytes). It requires a Hermes host change, is **not** part of this repository, and stock Hermes builds keep the limitation until they include such a fix.
-- Dark mode: component-level evidence only. Windows and Linux: untested.
+- Interaction coverage on the patched build passed a further 17 native checks: the code-block `Copy code` button's clipboard output is byte-identical to the fixture contract in every light/dark × on/off combination, a real column-drag resize keeps all five columns and every cell, external links hand off with the exact href (intercepted, no outbound request), and dark mode — switched via the app's own palette command — preserves content structure. The native UI offers no separate table-copy button (the whole-reply Copy covers tables). Windows and Linux remain untested.
 - Hermes's plugin static scan reports 0 rejections and 1 `app markup selector` review notice.
 
 ## What changes visually
