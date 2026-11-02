@@ -1,0 +1,14 @@
+{
+  "name": "hermes-plugin-contentstyle",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Style-only content presentation plugin for Hermes Desktop. Display only; never changes reply content.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build-plugin.mjs"
+  }
+}

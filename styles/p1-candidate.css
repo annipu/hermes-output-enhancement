@@ -1,0 +1,69 @@
+/* P1 experiment only. This is not an installed plugin or an accepted default.
+   Scope stays inside the candidate transcript; app chrome is untouched. */
+[data-style-probe='candidate'] {
+  --readable-heading: light-dark(#704098, #c3a4e7);
+  --readable-emphasis: light-dark(#92500f, #e7b176);
+  --readable-code: light-dark(#21663c, #a5d29a);
+}
+
+[data-style-probe='candidate'] .aui-md :is(h1, h2, h3, h4) {
+  color: var(--readable-heading);
+}
+
+[data-style-probe='candidate'] .aui-md :is(strong, [data-streamdown='strong']) {
+  color: var(--readable-emphasis);
+  font-weight: 650;
+}
+
+[data-style-probe='candidate'] .aui-md :not(pre) > code {
+  color: var(--readable-code);
+}
+
+[data-style-probe='candidate'] .aui-md-table {
+  border-color: var(--ui-stroke-secondary);
+}
+
+[data-style-probe='candidate'] .aui-md-table :is(th, td) {
+  padding: 0.625em 0.75em;
+  vertical-align: top;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  border-inline-end: 1px solid var(--ui-stroke-secondary);
+  border-block-end: 1px solid var(--ui-stroke-secondary);
+}
+
+[data-style-probe='candidate'] .aui-md-table :is(th, td):last-child {
+  border-inline-end: 0;
+}
+
+[data-style-probe='candidate'] .aui-md-table tbody > tr:last-child > td {
+  border-block-end: 0;
+}
+
+[data-style-probe='candidate'] .aui-md-table th {
+  color: var(--foreground);
+  font-size: var(--conversation-text-font-size);
+  font-weight: 650;
+}
+
+/* The production header clips its inner span. Preserve all of the label here. */
+[data-style-probe='candidate'] .aui-md-table th > span:first-child {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* A modest label column for ordinary 2-column summaries. An explicit colgroup
+   means the user resized the table: never override that choice. */
+[data-style-probe='candidate'] .aui-md-table table:not(:has(> colgroup)):has(> thead > tr > th:nth-child(2):last-child) {
+  table-layout: fixed;
+}
+
+[data-style-probe='candidate'] .aui-md-table table:not(:has(> colgroup)):has(> thead > tr > th:nth-child(2):last-child) th:first-child {
+  width: 27%;
+}
+
+/* More columns may scroll in a narrow transcript instead of losing text. */
+[data-style-probe='candidate'] .aui-md-table table:has(> thead > tr > th:nth-child(3)) :is(th, td) {
+  min-width: 7em;
+}
