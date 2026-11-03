@@ -276,9 +276,13 @@ await caseRun('26-ask-adapter-unit', async () => {
 await caseRun('27-corrupt-pref-safely-ignored', async () => {
   const pref = path.join(root, '.local', 'setup-language.json')
   await mkdir(path.dirname(pref), { recursive: true })
+  const backup = await readFile(pref).catch(() => null) // never wipe a real preference
   await writeFile(pref, '{ this is not json !!!', 'utf8')
   try { assert.equal(await loadSavedLocale(), null, 'a corrupt preference file must read back null') }
-  finally { await rm(pref, { force: true }) }
+  finally {
+    if (backup === null) await rm(pref, { force: true })
+    else await writeFile(pref, backup) // byte-exact restore
+  }
 })
 
 // --- REAL-fixture integrations: real setup.mjs subprocess, isolated plugin
