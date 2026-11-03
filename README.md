@@ -77,25 +77,62 @@ install records), `unknown` (a build/patch combination that has not been
 verified, e.g. after a Hermes update), `no-app`. Plugin uninstall stays
 independent of the host state.
 
-### Unified setup entry (experimental, maintainer-oriented)
+### Unified setup entry (interactive wizard + flags)
 
 `scripts/setup.mjs` orchestrates host patch + plugin install as one
-all-or-nothing transaction: both halves are dry-run first, and if either
-refuses (unknown host build, foreign plugin target, process guards…) nothing
-is written. It requires an explicit `--app=<Hermes.app>`, prints and saves a
-unified report to `.local/setup-latest.json`, and a failed plugin step rolls
-back only a host patch applied by the same transaction (a pre-existing patch
-is never touched). `--uninstall` removes only the plugin; add
-`--with-host-patch` to also revert the patch. Two defaults apply: the plugin target defaults to a `.local` test directory (pass
-`--plugin-target=` for a real location), and the host half
-(`scripts/host-binary-patch.mjs`) is write-gated by an explicit `--production` flag — dry-run is the read-only default on any app copy (the target app must not be running); full-file SHA-256 pinned recipes, transactional
-write, triple backup (in-app `.v2bak` + external original + manifest) and
-byte-exact rollback. Visitors wanting the host fix should use the source
-patch route under [`host-patch/`](host-patch/) instead. The verification
-matrices `scripts/host-binary-patch-check.mjs` (36 cases) and
-`scripts/setup-check.mjs` (13 cases) are published for transparency; they
-need project-internal frozen build fixtures under `.local/` and are not
-expected to run in a fresh clone.
+all-or-nothing transaction. Run it with no arguments in a real terminal for
+the **interactive wizard**:
+
+```bash
+node scripts/setup.mjs        # no arguments + a terminal → wizard
+```
+
+- **Language first**: a nine-language menu (English, 简体中文, 繁體中文, 日本語,
+  العربية, Русский, Français, Deutsch, Español) appears on every run; Enter
+  keeps the remembered preference, and the first confirmed choice is saved
+  inside this checkout. Questions and safety notes are localized; the plan
+  preview prints the underlying tools' diagnostic output as-is.
+- **Paths before status**: you confirm the app path and plugin target (with
+  defaults) first, so the status shown and the questions asked always refer to
+  those paths.
+- **All four combinations**: plugin only, host patch only, both, or nothing.
+  A `patched-verified` host shows "no change needed" and is never re-asked;
+  an unknown or missing host offers plugin-only.
+- **Nothing silent**: the plan is previewed as a dry-run first. Selecting the
+  host patch prints the safety notes before the final confirmation — triple
+  backup before writing, the code-signature seal is invalid until rollback
+  (rollback is byte-exact and verified), and a future Hermes self-update
+  overwrites the patch. The final confirmation defaults to **No**; EOF
+  (Ctrl-D) and Ctrl-C cancel safely at any prompt. Before that confirmation
+  your Hermes app and plugin files are never modified — only the language
+  preference and diagnostic reports are stored inside this checkout.
+
+Flag mode keeps the full contract for non-interactive contexts: it requires
+an explicit `--app=<Hermes.app>` (a no-argument run without a TTY is a usage
+error, never a wait), dry-runs first, and if either half refuses (unknown
+host build, foreign plugin target, process guards…) nothing is written.
+`--components=plugin|host|plugin,host` scopes the run; the unselected half is
+still reported read-only. A unified report is saved to
+`.local/setup-latest.json`, and a failed plugin step rolls back only a host
+patch applied by the same transaction (a pre-existing patch is never
+touched). `--uninstall` removes only the plugin; add `--with-host-patch` to
+also revert the patch. Two defaults apply: the plugin target defaults to a
+`.local` test directory in flag mode (pass `--plugin-target=` for a real
+location), and the host half (`scripts/host-binary-patch.mjs`) is write-gated
+by an explicit `--production` flag — dry-run is the read-only default on any
+app copy (the target app must not be running); full-file SHA-256 pinned
+recipes, transactional write, triple backup (in-app `.v2bak` + external
+original + manifest) and byte-exact rollback. Visitors wanting the host fix
+should use the source patch route under [`host-patch/`](host-patch/) instead.
+
+The verification matrices are published for transparency:
+`scripts/host-binary-patch-check.mjs` (36 cases — needs project-internal
+frozen build fixtures under `.local/`, not expected to run in a fresh clone),
+`scripts/setup-check.mjs` (16 cases) and `scripts/setup-wizard-check.mjs`
+(29 cases — injectable-IO unit matrix plus two real-fixture integrations
+against an isolated plugin target; never writes the working app). The setup
+and wizard matrices create their own `.local` scratch and run in a fresh
+clone.
 
 Files in the distribution directory:
 
