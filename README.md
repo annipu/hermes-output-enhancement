@@ -12,7 +12,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 ## Current status — alpha
 
-- Version `0.1.0-alpha.1`, **off by default**; opt in via the app's own plugin toggle.
+- Version `0.1.0-alpha.2`, **off by default**; opt in via the app's own plugin toggle.
 - The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-style-plugin/`) — see *Install*; no build step is needed.
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
@@ -99,7 +99,7 @@ expected to run in a fresh clone.
 
 Files in the distribution directory:
 
-- `plugin.js` — the runtime entry the app's disk-plugin loader consumes; these are the exact bytes that passed native verification (SHA-256 `dcee17c6813aca332cefbc0d3fca41c94f40100414b8065144af49d2f2383099`, version `0.1.0-alpha.1`).
+- `plugin.js` — the runtime entry the app's disk-plugin loader consumes; these are the exact bytes that passed native verification (SHA-256 `e3e921a533eb19e76de57928aafa520b17ca54ec263ddc7b5302ff7e39453d6e`, version `0.1.0-alpha.2`).
 - `build-info.json` — version and integrity metadata (plugin/CSS SHA-256, file list).
 - `README.md` — notes for the installed directory.
 
