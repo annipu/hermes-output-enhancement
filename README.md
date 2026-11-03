@@ -13,6 +13,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 ## Current status — alpha
 
 - Version `0.1.0-alpha.1`, **off by default**; opt in via the app's own plugin toggle.
+- The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-style-plugin/`) — see *Install*; no build step is needed.
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
 - A host-side fix for that limitation has been developed and verified in a patched Hermes build: **12 of 12 native checks passed** there, including bidirectional live sync between two real windows, rapid toggles, re-enable after disable, restart, uninstall and full content fidelity (identical plugin bytes). The patch ships in this repository under [`host-patch/`](host-patch/) with usage notes (generated against a pinned Hermes source revision; ANNIPU-maintained, not submitted upstream). Stock Hermes builds keep the limitation until they include such a fix.
@@ -29,7 +30,7 @@ Within assistant replies only — ordinary paragraphs, user messages and app chr
 
 Colors follow the active theme's light/dark variants.
 
-## Build
+## Build (only if you change the stylesheet)
 
 Requires Node.js 22+. No npm dependencies.
 
@@ -37,17 +38,33 @@ Requires Node.js 22+. No npm dependencies.
 npm run build
 ```
 
-This generates `plugin/hermes-style-plugin/plugin.js` (plus `build-info.json`) from `styles/p1-candidate.css`. The stylesheet is the source of truth; edit it, not the generated file.
+This regenerates `plugin/hermes-style-plugin/plugin.js` and `build-info.json`
+from `styles/p1-candidate.css`. The stylesheet is the source of truth; edit it,
+not the generated file. The committed `plugin/` files are the pre-built
+distribution (see *Install*) — most users never need this step.
 
 ## Install
 
-Build first (see above), then use the guarded installer:
+No build is needed: the repository ships the natively tested plugin as a
+pre-built distribution directory, `plugin/hermes-style-plugin/`. From a
+checkout of this repository (or its "Download ZIP"):
 
 ```bash
 node scripts/plugin-install.mjs            # dry-run: prints the plan only
 node scripts/plugin-install.mjs --apply    # install / upgrade
 node scripts/plugin-install.mjs uninstall --apply
 ```
+
+Requires Node.js 22+. The installer is a plain Node script with no npm
+dependencies — there is no `npm install` step. Note that GitHub's
+"Download ZIP" downloads the whole repository; extract it and run from the
+repository root. There is no separate binary release attachment at the moment.
+
+Files in the distribution directory:
+
+- `plugin.js` — the runtime entry the app's disk-plugin loader consumes; these are the exact bytes that passed native verification (SHA-256 `dcee17c6813aca332cefbc0d3fca41c94f40100414b8065144af49d2f2383099`, version `0.1.0-alpha.1`).
+- `build-info.json` — version and integrity metadata (plugin/CSS SHA-256, file list).
+- `README.md` — notes for the installed directory.
 
 The installer is version-aware. Re-running it after a rebuild upgrades an older
 install (backing the old directory up first), reports an identical install as a
@@ -66,18 +83,18 @@ Plugins, disabled by default. Enable/disable with its toggle; Uninstall on the
 plugin's detail page removes the directory (or use the uninstall command above,
 which backs it up first).
 
-Manual alternative: copy the built `plugin/hermes-style-plugin/` directory to
-the location above yourself. The natively tested candidate shipped `plugin.js`,
-a `README.md` and `build-info.json`; the loader consumes `plugin.js`. Building
-from this repository generates `plugin.js` and `build-info.json`; the `files`
-list inside `build-info.json` describes the packaged candidate's three-file
-layout, not the output of a local build.
+Manual alternative: copy the whole `plugin/hermes-style-plugin/` directory to
+the location above yourself — those three files are all it takes (no npm
+package, no separate CSS file or manifest). Installing the plugin does not
+include the host-side multi-window fix: on stock Hermes builds the
+window-sync limitation above remains; `host-patch/` is a separate,
+version-gated component.
 
 ## Compatibility
 
 The stylesheet targets the app's current DOM structure and may need adjusting after Hermes updates. Only the build listed under *Current status* has been native-tested; treat other versions as unverified.
 
-This repository contains source only — generated files under `plugin/` are built locally and not committed.
+The repository ships the pre-built distribution directory `plugin/hermes-style-plugin/` (the exact bytes that passed native verification). `npm run build` regenerates `plugin.js` and `build-info.json` from the stylesheet; a rebuilt `plugin.js` only counts as the tested candidate when its SHA-256 matches the shipped `pluginSha256`.
 
 ## License
 
