@@ -12,6 +12,9 @@
 //   - 2026-11-02 stock build: the build the single-file window-sync patch was
 //     derived on and A/B-verified (baseline 10/11 -> patched 12/12, rollback
 //     byte-exact, signature seal restored).
+//   - 2026-11-03 stock build: re-derived for the 2026-11-03 self-update and
+//     A/B-verified the same way (baseline 10/11 -> patched 12/12, rollback
+//     byte-exact, signature seal restored).
 import { readFile, readdir, lstat } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
@@ -25,6 +28,12 @@ export const HOST_RECIPES = [
     chunkName: 'layout-lXjPuTgt.js',
     preSha256: '2c2f82c100c6fa51090bc5b7d04787479db26d723202b91bb3ed72c94fc4771e',
     postSha256: '5d47e594ed96dbe5679680ce94930a0b2933d63b8420ac139da04a229f46b125',
+  },
+  {
+    label: 'stock 2026-11-03 build (sourceHash c6807894…)',
+    chunkName: 'layout-CSIx4R7D.js',
+    preSha256: 'fd49bb08d1ad742350813504fbc75d75a94e9bb6b80a8c9b38ac67136b2a2c20',
+    postSha256: '8ad8215687ed76f589f5d54a7b12028b2857941cb955d1d4c4df3bc32384753b',
   },
 ]
 export const DEFAULT_APP = path.join(os.homedir(), '.hermes/hermes-agent/apps/desktop/release/mac-arm64/Hermes.app')
