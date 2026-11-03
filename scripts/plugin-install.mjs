@@ -17,11 +17,20 @@
 //   - dry-run by default; --apply writes; --force overrides refusals (always
 //     backing the current target up first). Symlinked or non-directory targets
 //     are never handled with --force — resolve those manually.
+//   - the plugin alone is NOT the complete installation: after its own verdict
+//     the installer probes the HOST patch state (read-only, safe on a running
+//     app — scripts/install-status.mjs) and reports both sides. Exit codes:
+//     0 = action complete AND (for install) host patch verified, or
+//     --plugin-only was explicit; 1 = refused/error; 3 = plugin is in place
+//     but the host patch is missing or unverified for this Hermes build
+//     (re-run with --plugin-only to accept plugin-only). Uninstall is
+//     plugin-scoped and stays independent of the host state.
 import { readFile, mkdir, rm, readdir, cp, access, rename, lstat } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { probeHost } from './install-status.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PLUGIN_ID = 'hermes-style-plugin'
@@ -34,6 +43,8 @@ const FORCE = argv.includes('--force')
 // Last occurrence wins: lets callers override earlier flags (e.g. a wrapper
 // that pre-seeds defaults). findLast is available on Node >= 18.
 const opt = name => { const hit = argv.findLast(a => a.startsWith(`--${name}=`)); return hit ? hit.slice(name.length + 3) : null }
+const PLUGIN_ONLY = argv.includes('--plugin-only')
+const APP_OPT = opt('app')
 const sourceDir = opt('source') ?? path.join(root, 'plugin', PLUGIN_ID)
 const targetBase = opt('target') ?? path.join(os.homedir(), '.hermes', 'desktop-plugins')
 const targetDir = path.join(targetBase, PLUGIN_ID)
@@ -200,10 +211,29 @@ try {
   }
 
   console.log(`[plan] ${planText}`)
+  // The plugin alone is NOT the complete installation: probe the host-patch
+  // state read-only (safe on a running app) and report both sides. A probe
+  // failure degrades to 'probe-error' and is never reported as patched.
+  const host = await probeHost(APP_OPT).catch(error => ({ state: 'probe-error', error: error.message }))
+  const hostNote = host.state === 'probe-error' ? ` (${host.error})` : ''
+  console.log(`[status] host patch: ${host.state}${host.recipe ? ` — ${host.recipe.label}, ${host.recipe.role}` : ''}${host.recovery && host.recovery !== 'none' ? `, recovery: ${host.recovery}` : ''}${hostNote}`)
   if (!APPLY) { console.log('[dry-run] no changes written — re-run with --apply to execute.'); process.exit(0) }
   const b = run ? await run() : null
   if (b) console.log(`[ok] backup -> ${b}`)
   console.log(`[ok] ${verdict} complete`)
+  // Uninstall is plugin-scoped and stays independent of the host patch state.
+  if (action === 'uninstall') process.exit(0)
+  if (PLUGIN_ONLY) {
+    console.log('[status] plugin-only mode: the host patch is intentionally out of scope for this run (limitation: no live cross-window sync of the toggle on stock builds).')
+    process.exit(0)
+  }
+  if (host.state !== 'patched-verified') {
+    console.error(`[incomplete] the style plugin is in place, but the host patch is ${host.state === 'unpatched-supported' ? 'NOT applied' : 'not verified for this Hermes build'} (${host.state}${hostNote}).`)
+    console.error('            The plugin itself works; what is missing is live cross-window sync of the on/off toggle.')
+    console.error('            Re-run with --plugin-only to accept plugin-only, or see README — the host patch is a separate, version-gated component (host-patch/).')
+    process.exit(3)
+  }
+  console.log('[status] complete installation verified: plugin installed + host patch verified.')
 } catch (error) {
   console.error(`[${error.code === 1 ? 'refuse' : 'error'}] ${error.message}`)
   process.exit(1)
