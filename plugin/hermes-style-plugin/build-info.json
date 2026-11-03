@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0-alpha.1",
+  "id": "hermes-style-plugin",
+  "defaultEnabled": false,
+  "cssSourceSha256": "cda2711aa8796a25910ae35b74a9ff17420bdd25cc661565d4ab3bdd51e81e49",
+  "pluginSha256": "dcee17c6813aca332cefbc0d3fca41c94f40100414b8065144af49d2f2383099",
+  "files": [
+    "plugin.js",
+    "README.md",
+    "build-info.json"
+  ],
+  "scope": "Read-only assistant-reply CSS; no SDK requests, prompt changes, message processing, or storage API."
+}
