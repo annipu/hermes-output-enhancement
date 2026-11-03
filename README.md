@@ -60,6 +60,22 @@ dependencies — there is no `npm install` step. Note that GitHub's
 "Download ZIP" downloads the whole repository; extract it and run from the
 repository root. There is no separate binary release attachment at the moment.
 
+The installer also checks the OTHER half of a complete installation — the
+host-side window-sync patch — and reports its state read-only (safe while
+the app is running; see `scripts/install-status.mjs`, which can also be run
+standalone). Exit codes: `0` — action complete and, for installs, host patch
+verified (or `--plugin-only` was explicit); `1` — refused / error; `3` — the
+plugin is in place but the host patch is missing or unverified for your
+Hermes build. `3` is not a plugin failure: the style plugin works, what is
+missing is live cross-window sync of the on/off toggle. To accept
+plugin-only explicitly: `node scripts/plugin-install.mjs --apply --plugin-only`.
+Host states you may see: `unpatched-supported` (your build is a registered
+patch target and the patch is not applied), `patched-verified` (full-file
+hash match against the registered recipe — never inferred from markers or
+install records), `unknown` (a build/patch combination that has not been
+verified, e.g. after a Hermes update), `no-app`. Plugin uninstall stays
+independent of the host state.
+
 Files in the distribution directory:
 
 - `plugin.js` — the runtime entry the app's disk-plugin loader consumes; these are the exact bytes that passed native verification (SHA-256 `dcee17c6813aca332cefbc0d3fca41c94f40100414b8065144af49d2f2383099`, version `0.1.0-alpha.1`).
