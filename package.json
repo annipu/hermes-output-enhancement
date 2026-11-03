@@ -9,6 +9,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node scripts/build-plugin.mjs"
+    "build": "node scripts/build-plugin.mjs",
+    "plugin:install": "node scripts/plugin-install.mjs",
+    "plugin:uninstall": "node scripts/plugin-install.mjs uninstall"
   }
 }

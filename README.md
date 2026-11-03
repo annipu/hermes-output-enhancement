@@ -41,17 +41,37 @@ This generates `plugin/hermes-style-plugin/plugin.js` (plus `build-info.json`) f
 
 ## Install
 
-1. Run the build above.
-2. Copy the generated directory so the plugin lives at:
+Build first (see above), then use the guarded installer:
 
-   ```text
-   <application-level Hermes home>/desktop-plugins/hermes-style-plugin/plugin.js
-   ```
+```bash
+node scripts/plugin-install.mjs            # dry-run: prints the plan only
+node scripts/plugin-install.mjs --apply    # install / upgrade
+node scripts/plugin-install.mjs uninstall --apply
+```
 
-   `desktop-plugins` is the application-level directory shared across agent profiles — not a per-profile directory. Keep the folder name `hermes-style-plugin`; it matches the plugin id.
-3. The app watches this directory. The plugin then appears in the app's plugin list (Settings → Capabilities → Plugins, also reachable via the command palette), disabled by default. Enable it with its toggle; disable it the same way; Uninstall on the plugin's detail page removes the directory.
+The installer is version-aware. Re-running it after a rebuild upgrades an older
+install (backing the old directory up first), reports an identical install as a
+no-op, and refuses to touch anything it cannot verify — unexpected files, a
+foreign plugin id, a newer version — unless you pass `--force` (which still
+backs the current directory up first). Only `plugin.js`, `build-info.json` and
+(when present) `README.md` are ever copied: the copy is staged next to the
+target, verified, then switched; a failed switch restores the previous
+directory. Backups go to `.local/plugin-backups/` inside your checkout.
 
-The natively tested candidate shipped `plugin.js`, a `README.md` and `build-info.json` in that directory; the loader consumes `plugin.js`. Building from this repository generates `plugin.js` and `build-info.json`; the `files` list inside `build-info.json` describes the packaged candidate's three-file layout, not the output of a local build.
+This places the plugin at the application-level directory shared across agent
+profiles (default `<home>/.hermes/desktop-plugins/hermes-style-plugin/`; pass
+`--target=` to override). Keep the folder name — it matches the plugin id. The
+app watches this directory: the plugin appears in Settings → Capabilities →
+Plugins, disabled by default. Enable/disable with its toggle; Uninstall on the
+plugin's detail page removes the directory (or use the uninstall command above,
+which backs it up first).
+
+Manual alternative: copy the built `plugin/hermes-style-plugin/` directory to
+the location above yourself. The natively tested candidate shipped `plugin.js`,
+a `README.md` and `build-info.json`; the loader consumes `plugin.js`. Building
+from this repository generates `plugin.js` and `build-info.json`; the `files`
+list inside `build-info.json` describes the packaged candidate's three-file
+layout, not the output of a local build.
 
 ## Compatibility
 
