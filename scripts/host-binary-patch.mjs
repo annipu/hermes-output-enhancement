@@ -1,13 +1,13 @@
-// EXPERIMENTAL finished-app patch tool — hardening v3 (2026-11-03, review round 2).
+// Finished-app patch tool — hardening v3 + production write gate (2026-11-03).
 // Applies the window-sync v2 change directly inside a Hermes.app bundle by
 // transforming the plugins-store module region in the renderer layout chunk.
 //
 // Hardening model (all enforced in code, not by convention):
-//   - experiment root: the app realpath MUST be under <project>/.local — the
-//     working app and anything outside is refused before it is ever touched.
-//     Every directory of the chain (experiment root -> app -> assets) is
-//     lstat-checked; any symlink is refused. The anchor scan refuses symlinked
-//     or non-regular .js candidates instead of silently skipping them.
+//   - production write gate: any Hermes.app copy may be INSPECTED (dry-run
+//     is read-only), but writes only happen with an explicit --production.
+//     The whole input path chain and every bundle segment are lstat-checked;
+//     any symlink is refused. The anchor scan refuses symlinked or
+//     non-regular .js candidates instead of silently skipping them.
 //   - pinned identity at BOTH ends: pre sha256 (original build) AND post
 //     sha256 (the A/B-verified patched build). A manifest is never trusted on
 //     its own: its app/chunk/pre/post fields must match the built-in pins and
@@ -44,7 +44,7 @@
 //     recovery-write, write-interrupt:<label>) and crash points
 //     (pending-manifest, after-v2bak, after-switch — exit 70, simulating a
 //     killed process) drive the state-machine tests.
-//   - dry-run default: --apply writes. Dry-run is read-only validation; the
+//   - dry-run default: --production writes. Dry-run is read-only validation; the
 //     syntax check uses a temporary file inside the project, cleaned up.
 // Verified facts this relies on (2026-11-03): the target file lives in
 // app.asar.unpacked (outside the asar archive); fuses have
@@ -62,7 +62,7 @@ class FatalError extends Error {}
 async function main() {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const argv = process.argv.slice(2)
-const APPLY = argv.includes('--apply')
+const PRODUCTION = argv.includes('--production')
 const ROLLBACK = argv.includes('--rollback')
 const appPath = (() => { const hit = argv.find(a => a.startsWith('--app=')); return hit ? hit.slice(6) : null })()
 const INJECT = new Set((() => { const hit = argv.find(a => a.startsWith('--inject=')); return hit ? hit.slice(9).split(',') : [] })())
@@ -73,7 +73,7 @@ const die = msg => { console.error(`[error] ${msg}`); throw new FatalError(msg) 
 const inject = name => { if (INJECT.has(name)) throw new Error(`injected fault: ${name}`) }
 const injectExit = name => { if (INJECT.has(name)) { console.error(`[inject] simulating a crash at ${name}`); process.exit(70) } }
 
-const EXPERIMENT_ROOT = path.join(root, '.local')
+const STATE_ROOT = path.join(root, '.local')
 const KEY = 'hermes.desktop.pluginDecisions.v2'
 // Recipe table: full-hash indexed per build; 'verified' = isolated A/B passed;
 // 'experimental' = syntax + sandbox matrix only — internal project copies,
@@ -104,8 +104,8 @@ const RECIPES = [
   },
 ]
 
-say('[experimental] finished-app patch tool — project-internal copies only')
-if (!appPath) die('usage: node scripts/host-binary-patch.mjs --app=<Hermes.app> [--apply] [--rollback] (internal: --inject=point,point)')
+say('[tool] finished-app patch tool — dry-run by default; writes require an explicit --production')
+if (!appPath) die('usage: node scripts/host-binary-patch.mjs --app=<Hermes.app> [--production] [--rollback] (internal: --inject=point,point)')
 
 // ---- experiment-root + symlink-chain enforcement ----
 // The ORIGINAL input chain is lstat-checked first: realpath would silently
@@ -121,23 +121,14 @@ if (!appPath) die('usage: node scripts/host-binary-patch.mjs --app=<Hermes.app> 
     if (st.isSymbolicLink()) die(`symlink in the INPUT app path: ${cur} — refusing`)
   }
 }
-if ((await lstat(EXPERIMENT_ROOT).catch(() => null))?.isSymbolicLink()) die('the experiment root itself is a symlink — refusing')
+if ((await lstat(STATE_ROOT).catch(() => null))?.isSymbolicLink()) die('the state root itself is a symlink — refusing')
 const appReal = await realpath(appPath)
-if (!appReal.startsWith(EXPERIMENT_ROOT + path.sep)) die(`app realpath must be inside the experiment root ${EXPERIMENT_ROOT} — refusing (working apps are off-limits while this tool is experimental)`)
-{
-  const parts = path.relative(EXPERIMENT_ROOT, appReal).split(path.sep)
-  let cur = EXPERIMENT_ROOT
-  for (const part of parts) {
-    cur = path.join(cur, part)
-    if ((await lstat(cur)).isSymbolicLink()) die(`symlink in the app path chain: ${cur} — refusing`)
-  }
-}
 const assetsDir = path.join(appReal, 'Contents/Resources/app.asar.unpacked/dist/assets')
 for (const seg of ['Contents', 'Contents/Resources', 'Contents/Resources/app.asar.unpacked', 'Contents/Resources/app.asar.unpacked/dist', 'Contents/Resources/app.asar.unpacked/dist/assets']) {
   if ((await lstat(path.join(appReal, seg))).isSymbolicLink()) die(`symlink inside the app bundle: ${path.join(appReal, seg)} — refusing`)
 }
 
-const manifestDir = path.join(EXPERIMENT_ROOT, 'host-binary-patch-manifests', sha(appReal).slice(0, 12))
+const manifestDir = path.join(STATE_ROOT, 'host-binary-patch-manifests', sha(appReal).slice(0, 12))
 const manifestFile = path.join(manifestDir, 'manifest.json')
 const originalCopy = path.join(manifestDir, 'original.js')
 const lockPath = path.join(manifestDir, 'lock')
@@ -268,7 +259,7 @@ try {
     const cur = await shaFile(file)
     if (cur === PINNED_PRE_SHA256) {
       say('[ok] target already matches the pinned original — nothing to restore')
-      if (!APPLY) { say('[dry-run] target App not modified'); return 0 }
+      if (!PRODUCTION) { say('[dry-run] target App not modified'); return 0 }
     } else if (cur !== PINNED_POST_SHA256) {
       die(`target sha256 ${cur.slice(0, 8)}… is neither the pinned original (${PINNED_PRE_SHA256.slice(0, 8)}…) nor the recorded patch (${PINNED_POST_SHA256.slice(0, 8)}…) — the app may have been updated or modified elsewhere; refusing to overwrite it`)
     } else {
@@ -277,14 +268,14 @@ try {
       const bytes = await readFile(originalCopy)
       if (sha(bytes) !== PINNED_PRE_SHA256) die('external backup bytes do not match the pinned pre-hash — refusing')
       say('[plan] restore the pinned original bytes from the external backup (hash verified)')
-      if (!APPLY) { say('[dry-run] target App not modified — re-run with --rollback --apply'); return 0 }
+      if (!PRODUCTION) { say('[dry-run] target App not modified — re-run with --rollback --production'); return 0 }
       processGuard(' (pre-rollback re-check)')
       await stagedWrite(file, bytes, PINNED_PRE_SHA256, 'rollback', mode)
       const final = await shaFile(file)
       if (final !== PINNED_PRE_SHA256) die('post-rollback verification failed — manual intervention required')
       say(`[ok] rolled back ${file} (target re-read and verified against the pinned pre-hash)`)
     }
-    if (APPLY) {
+    if (PRODUCTION) {
       await rm(v2bak, { force: true })
       await writeManifest({ ...manifest, status: 'rolled-back', rolledBackAt: new Date().toISOString() })
     }
@@ -311,18 +302,18 @@ try {
     if (obSt !== 'present') die('target is patched but the authoritative external backup is missing — refusing to finalize; inspect manually')
     if ((await shaFile(originalCopy)) !== PINNED_PRE_SHA256) die('external backup does not hold the pinned original bytes — refusing to finalize')
     say('[plan] a previous run switched the target but did not finalize — finalize the install record (backup verified, both pinned hashes hold)')
-    if (!APPLY) { say('[dry-run] target App not modified'); return 0 }
+    if (!PRODUCTION) { say('[dry-run] target App not modified'); return 0 }
     await writeManifest({ ...baseRecord(), status: 'installed', appliedAt: new Date().toISOString(), recoveredFrom: manifest?.status ?? 'no-record' })
     say('[ok] recovered: install finalized (interrupted run detected post-switch)')
     return 0
   }
   if (curSha !== PINNED_PRE_SHA256) die(`target sha256 ${curSha.slice(0, 8)}… does not match the pinned original build ${PINNED_PRE_SHA256.slice(0, 8)}… — refusing (updated or unknown build)`)
   if (manifest?.status === 'pending') {
-    // interrupted BEFORE the switch: on --apply, preserve the evidence and
+    // interrupted BEFORE the switch: on --production, preserve the evidence and
     // start fresh; a dry-run only reports the plan and must never mutate the
     // transaction record (round 3 #2).
     const archived = `${manifestFile}.aborted-${Date.now()}`
-    if (!APPLY) say(`[plan] would archive the interrupted pending record to ${path.basename(archived)} (dry-run: not modified)`)
+    if (!PRODUCTION) say(`[plan] would archive the interrupted pending record to ${path.basename(archived)} (dry-run: not modified)`)
     else {
       await rename(manifestFile, archived)
       say(`[lock] previous run left a pending record with the target untouched — evidence preserved at ${path.basename(archived)}`)
@@ -345,7 +336,7 @@ try {
   const postSha = sha(patchedBuf)
   if (postSha !== PINNED_POST_SHA256) die(`transformed bytes hash to ${postSha.slice(0, 8)}… instead of the pinned patched build ${PINNED_POST_SHA256.slice(0, 8)}… — refusing (transformation drift)`)
 
-  const tmpDir = path.join(EXPERIMENT_ROOT, 'tmp', `syntax-${randomUUID().slice(0, 8)}`)
+  const tmpDir = path.join(STATE_ROOT, 'tmp', `syntax-${randomUUID().slice(0, 8)}`)
   await mkdir(tmpDir, { recursive: true })
   let syntaxOk = true
   try {
@@ -362,7 +353,7 @@ try {
   say(`  post sha256: ${PINNED_POST_SHA256}`)
   say(`  authoritative backup: ${originalCopy}`)
   say(`  auxiliary in-app backup: ${v2bak}`)
-  if (!APPLY) { say('[dry-run] target App not modified — re-run with --apply to execute.'); return 0 }
+  if (!PRODUCTION) { say('[dry-run] target App not modified — re-run with --production to execute.'); return 0 }
 
   // preconditions (outside the transaction: failures must not trigger recovery)
   const obSt = await fileState(originalCopy)
@@ -374,7 +365,7 @@ try {
     // pinned original bytes) is cleaned up; anything else is foreign and refused.
     const ours = manifest?.status === 'pending' && (await shaFile(v2bak).catch(() => null)) === PINNED_PRE_SHA256
     if (!ours) die('unexpected pre-existing .v2bak in the app — refusing to overwrite it')
-    if (APPLY) { await rm(v2bak, { force: true }); say('[lock] removed our own leftover in-app backup from the interrupted run') }
+    if (PRODUCTION) { await rm(v2bak, { force: true }); say('[lock] removed our own leftover in-app backup from the interrupted run') }
     else say('[plan] would remove our own leftover in-app backup from the interrupted run (dry-run: not modified)')
   }
   if (vbSt !== 'absent' && vbSt !== 'present') die(`.v2bak unreadable (${vbSt}) — refusing`)
@@ -401,7 +392,7 @@ try {
     inject('installed-manifest')
     await writeManifest({ ...baseRecord(), status: 'installed', appliedAt: new Date().toISOString() })
     say(`[ok] patched ${file}`)
-    say(`[ok] rollback: node scripts/host-binary-patch.mjs --app='${appPath}' --rollback --apply`)
+    say(`[ok] rollback: node scripts/host-binary-patch.mjs --app='${appPath}' --rollback --production`)
     return 0
   } catch (err) {
     say(`[recover] install failed: ${err.message} — attempting recovery`)

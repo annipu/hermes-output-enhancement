@@ -2,7 +2,7 @@
 // Node-assert based: every case checks exit code, output, and byte hashes
 // before/after; any failure fails the whole run (nonzero exit) and a
 // machine-readable JSON report is written to .local/.
-// Coverage (35 cases): the 15 scenarios of the v2 matrix (updated for v3
+// Coverage (36 cases): the 15 scenarios of the v2 matrix (updated for v3
 // messages) plus the review-round-2 debt: pending-restart state machine
 // (pre-switch / post-switch), deterministic fault injections (external-backup,
 // v2bak via chmod, installed-manifest, recovery-write), concurrent execution
@@ -82,7 +82,7 @@ await caseRun('01-dry-run', async () => {
 })
 await caseRun('02-apply', async () => {
   await makeApp('02'); const chunk = chunkOf('02')
-  const r = run([appArg('02'), '--apply'])
+  const r = run([appArg('02'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /\[ok\] patched/)
   const manifest = JSON.parse(await readFile(manifestOf('02'), 'utf8'))
@@ -94,7 +94,7 @@ await caseRun('02-apply', async () => {
   assert.equal(await sha(path.join(manifestDirOf('02'), 'original.js')), PINNED, 'authoritative external backup must hold original bytes')
 })
 await caseRun('03-idempotent-reapply', async () => {
-  const r = run([appArg('02'), '--apply'])
+  const r = run([appArg('02'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /already patched and complete/)
   assert.equal(await sha(chunkOf('02')), EXPECTED_POST)
@@ -103,7 +103,7 @@ await caseRun('04-anchor-tamper-refused', async () => {
   await makeApp('04'); const chunk = chunkOf('04')
   await modify(chunk, 'pluginDecisions.v2`,pe=', 'pluginDecisions.vX`,pe=')
   const before = await sha(chunk)
-  const r = run([appArg('04'), '--apply'])
+  const r = run([appArg('04'), '--production'])
   assert.notEqual(r.status, 0, 'must refuse on unknown anchor')
   assert.match(r.stderr, /anchor scan/)
   assert.equal(await sha(chunk), before, 'target must be untouched')
@@ -112,7 +112,7 @@ await caseRun('05-region-interior-tamper-refused', async () => {
   await makeApp('05'); const chunk = chunkOf('05')
   await modify(chunk, 'function he(e,t=!0){', 'function he(e,t=!1){')
   const before = await sha(chunk)
-  const r = run([appArg('05'), '--apply'])
+  const r = run([appArg('05'), '--production'])
   assert.notEqual(r.status, 0, 'anchors kept but bytes differ -> must refuse via the pre pin')
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before)
@@ -121,17 +121,17 @@ await caseRun('06-outside-region-modification-refused', async () => {
   await makeApp('06'); const chunk = chunkOf('06')
   await writeFile(chunk, Buffer.concat([await readFile(chunk), Buffer.from('//x')]))
   const before = await sha(chunk)
-  const r = run([appArg('06'), '--apply'])
+  const r = run([appArg('06'), '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before)
 })
 await caseRun('07-marker-present-body-tampered-refused', async () => {
   await makeApp('07'); const chunk = chunkOf('07')
-  assert.equal(run([appArg('07'), '--apply']).status, 0, 'precondition: clean install')
+  assert.equal(run([appArg('07'), '--production']).status, 0, 'precondition: clean install')
   await modify(chunk, 'pdv=new Map', 'pdv=new Map ')
   const before = await sha(chunk)
-  const r = run([appArg('07'), '--apply'])
+  const r = run([appArg('07'), '--production'])
   assert.notEqual(r.status, 0, 'marker alone must not count as installed')
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before)
@@ -139,7 +139,7 @@ await caseRun('07-marker-present-body-tampered-refused', async () => {
 await caseRun('08-preexisting-v2bak-refused', async () => {
   await makeApp('08'); const chunk = chunkOf('08')
   await writeFile(chunk + '.v2bak', 'garbage-not-a-backup')
-  const r = run([appArg('08'), '--apply'])
+  const r = run([appArg('08'), '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /pre-existing \.v2bak/)
   assert.equal(await sha(chunk), PINNED)
@@ -147,7 +147,7 @@ await caseRun('08-preexisting-v2bak-refused', async () => {
 })
 await caseRun('09-rollback-restores-original', async () => {
   const chunk = chunkOf('02')
-  const r = run([appArg('02'), '--rollback', '--apply'])
+  const r = run([appArg('02'), '--rollback', '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /rolled back/)
   assert.equal(await sha(chunk), PINNED)
@@ -156,19 +156,19 @@ await caseRun('09-rollback-restores-original', async () => {
 })
 await caseRun('10-rollback-after-simulated-update-refused', async () => {
   await makeApp('10'); const chunk = chunkOf('10')
-  assert.equal(run([appArg('10'), '--apply']).status, 0, 'precondition: clean install')
+  assert.equal(run([appArg('10'), '--production']).status, 0, 'precondition: clean install')
   await writeFile(chunk, Buffer.concat([await readFile(CHUNK), Buffer.from('//official-update')]))
   const before = await sha(chunk)
-  const r = run([appArg('10'), '--rollback', '--apply'])
+  const r = run([appArg('10'), '--rollback', '--production'])
   assert.notEqual(r.status, 0, 'must refuse to overwrite a target changed by someone else')
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before, 'simulated update must be preserved')
 })
 await caseRun('11-rollback-without-manifest-refused', async () => {
   await makeApp('11'); const chunk = chunkOf('11')
-  assert.equal(run([appArg('11'), '--apply']).status, 0, 'precondition: clean install')
+  assert.equal(run([appArg('11'), '--production']).status, 0, 'precondition: clean install')
   await rm(manifestOf('11'), { force: true })
-  const r = run([appArg('11'), '--rollback', '--apply'])
+  const r = run([appArg('11'), '--rollback', '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /no trusted install record/)
   assert.equal(await sha(chunk), EXPECTED_POST, 'target must be left alone')
@@ -177,7 +177,7 @@ await caseRun('12-backup-failure-aborts-safely', async () => {
   await makeApp('12'); const { chunk, assets } = apps['12']
   await chmod(assets, 0o555)
   try {
-    const r = run([appArg('12'), '--apply'])
+    const r = run([appArg('12'), '--production'])
     assert.notEqual(r.status, 0, 'install must fail when the in-app backup cannot be written')
     assert.match(r.stderr, /install failed/)
     assert.equal(await sha(chunk), PINNED, 'target must still be the pristine original')
@@ -187,7 +187,7 @@ await caseRun('12-backup-failure-aborts-safely', async () => {
 })
 await caseRun('13-reapply-after-abort-not-wedged', async () => {
   const chunk = chunkOf('12')
-  const r = run([appArg('12'), '--apply'])
+  const r = run([appArg('12'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.equal(await sha(chunk), EXPECTED_POST)
   assert.equal(JSON.parse(await readFile(manifestOf('12'), 'utf8')).status, 'installed')
@@ -203,7 +203,7 @@ await caseRun('15-process-guard-refuses', async () => {
   const dummy = spawn('node', ['-e', 'setTimeout(() => {}, 20000)', appReal + '/Contents/MacOS/Hermes'], { stdio: 'ignore' })
   try {
     await new Promise(resolve => setTimeout(resolve, 300))
-    const r = run([appArg('15'), '--apply'])
+    const r = run([appArg('15'), '--production'])
     assert.notEqual(r.status, 0, 'must refuse while a matching process runs')
     assert.match(r.stderr, /is running/)
     assert.equal(await sha(chunkOf('15')), PINNED)
@@ -211,10 +211,10 @@ await caseRun('15-process-guard-refuses', async () => {
 })
 await caseRun('16-pending-restart-pre-switch', async () => {
   await makeApp('16'); const chunk = chunkOf('16')
-  const crash = run([appArg('16'), '--apply', '--inject=pending-manifest'])
+  const crash = run([appArg('16'), '--production', '--inject=pending-manifest'])
   assert.equal(crash.status, 70, 'injected crash must exit 70')
   assert.equal(await sha(chunk), PINNED, 'crash happened before the switch')
-  const r = run([appArg('16'), '--apply'])
+  const r = run([appArg('16'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /evidence preserved/)
   assert.equal(await sha(chunk), EXPECTED_POST)
@@ -224,10 +224,10 @@ await caseRun('16-pending-restart-pre-switch', async () => {
 })
 await caseRun('17-pending-restart-post-switch', async () => {
   await makeApp('17'); const chunk = chunkOf('17')
-  const crash = run([appArg('17'), '--apply', '--inject=after-switch'])
+  const crash = run([appArg('17'), '--production', '--inject=after-switch'])
   assert.equal(crash.status, 70, 'injected crash must exit 70')
   assert.equal(await sha(chunk), EXPECTED_POST, 'crash happened after the switch')
-  const r = run([appArg('17'), '--apply'])
+  const r = run([appArg('17'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /recovered/)
   assert.equal(await sha(chunk), EXPECTED_POST)
@@ -238,7 +238,7 @@ await caseRun('17-pending-restart-post-switch', async () => {
 })
 await caseRun('18-installed-manifest-fault-recovers', async () => {
   await makeApp('18'); const chunk = chunkOf('18')
-  const r = run([appArg('18'), '--apply', '--inject=installed-manifest'])
+  const r = run([appArg('18'), '--production', '--inject=installed-manifest'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /install failed/)
   assert.equal(await sha(chunk), PINNED, 'recovery must restore the pinned original')
@@ -247,7 +247,7 @@ await caseRun('18-installed-manifest-fault-recovers', async () => {
 })
 await caseRun('19-recovery-write-fault-honest-broken', async () => {
   await makeApp('19'); const chunk = chunkOf('19')
-  const r = run([appArg('19'), '--apply', '--inject=installed-manifest,recovery-write'])
+  const r = run([appArg('19'), '--production', '--inject=installed-manifest,recovery-write'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /RECOVERY FAILED/)
   assert.equal(await sha(chunk), EXPECTED_POST, 'target must be left as-is (restore failed) — never falsely reported restored')
@@ -257,9 +257,9 @@ await caseRun('19-recovery-write-fault-honest-broken', async () => {
 })
 await caseRun('20-concurrent-single-flight', async () => {
   await makeApp('20')
-  const first = runAsync([appArg('20'), '--apply'])
+  const first = runAsync([appArg('20'), '--production'])
   await new Promise(resolve => setTimeout(resolve, 100))
-  const second = runAsync([appArg('20'), '--apply'])
+  const second = runAsync([appArg('20'), '--production'])
   const [r1, r2] = await Promise.all([first, second])
   const codes = [r1.status, r2.status]
   assert.ok(codes.includes(0), `at least one apply must succeed: ${JSON.stringify({ codes, e1: r1.stderr.slice(-200), e2: r2.stderr.slice(-200) })}`)
@@ -275,20 +275,27 @@ await caseRun('20-concurrent-single-flight', async () => {
 })
 await caseRun('21-external-backup-fault-aborts', async () => {
   await makeApp('21'); const chunk = chunkOf('21')
-  const r = run([appArg('21'), '--apply', '--inject=external-backup'])
+  const r = run([appArg('21'), '--production', '--inject=external-backup'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /install failed/)
   assert.equal(await sha(chunk), PINNED, 'target must remain the pinned original')
   assert.equal(JSON.parse(await readFile(manifestOf('21'), 'utf8')).status, 'aborted')
   assert.equal(await exists(chunk + '.v2bak'), false)
 })
-await caseRun('22-working-app-refused', async () => {
+await caseRun('22-running-working-app-refused-by-process-guard', async () => {
   const WORK_APP = path.join(os.homedir(), '.hermes/hermes-agent/apps/desktop/release/mac-arm64/Hermes.app')
-  const before = await sha(CHUNK)
+  const assetsDir = path.join(WORK_APP, 'Contents/Resources/app.asar.unpacked/dist/assets')
+  let anchor = null
+  for (const n of await readdir(assetsDir)) {
+    if (n.endsWith('.js') && (await readFile(path.join(assetsDir, n), 'utf8')).includes('hermes.desktop.pluginDecisions.v2')) { anchor = n; break }
+  }
+  assert.ok(anchor, 'anchor chunk present in the real working app')
+  const before = await sha(path.join(assetsDir, anchor))
   const r = run(['--app=' + WORK_APP])
-  assert.notEqual(r.status, 0, 'the working app must be refused outright')
-  assert.match(r.stderr, /experiment root/)
-  assert.equal(await sha(CHUNK), before, 'the working app must not be touched even on refusal')
+  assert.notEqual(r.status, 0, 'a running working app must still be refused')
+  assert.match(r.stderr, /is running/, 'refusal must name the running process')
+  assert.doesNotMatch(r.stderr, /experiment root/, 'the path restriction is gone — only the process guard refuses')
+  assert.equal(await sha(path.join(assetsDir, anchor)), before, 'the working app must not be touched even on refusal')
 })
 await caseRun('23-symlink-candidate-refused', async () => {
   await makeApp('23')
@@ -314,11 +321,11 @@ await caseRun('24-bundle-segment-symlink-refused', async () => {
 
 await caseRun('25-pending-crash-after-v2bak-recovers-own-backup', async () => {
   await makeApp('25'); const chunk = chunkOf('25')
-  const crash = run([appArg('25'), '--apply', '--inject=after-v2bak'])
+  const crash = run([appArg('25'), '--production', '--inject=after-v2bak'])
   assert.equal(crash.status, 70, 'injected crash must exit 70')
   assert.equal(await sha(chunk), PINNED, 'crash happened before the switch')
   assert.equal(await exists(chunk + '.v2bak'), true, 'own leftover backup present')
-  const r = run([appArg('25'), '--apply'])
+  const r = run([appArg('25'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /own leftover in-app backup|evidence preserved/)
   assert.equal(await sha(chunk), EXPECTED_POST)
@@ -326,7 +333,7 @@ await caseRun('25-pending-crash-after-v2bak-recovers-own-backup', async () => {
 })
 await caseRun('26-dry-run-on-pending-does-not-mutate-records', async () => {
   await makeApp('26')
-  const crash = run([appArg('26'), '--apply', '--inject=pending-manifest'])
+  const crash = run([appArg('26'), '--production', '--inject=pending-manifest'])
   assert.equal(crash.status, 70)
   const r = run([appArg('26')])
   assert.equal(r.status, 0, r.stderr)
@@ -345,18 +352,18 @@ await caseRun('27-malformed-lock-refused-conservatively', async () => {
 })
 await caseRun('28-third-hash-target-with-pending-refused', async () => {
   await makeApp('28'); const chunk = chunkOf('28')
-  const crash = run([appArg('28'), '--apply', '--inject=after-switch'])
+  const crash = run([appArg('28'), '--production', '--inject=after-switch'])
   assert.equal(crash.status, 70)
   await writeFile(chunk, Buffer.concat([await readFile(chunk), Buffer.from('//third-party')]))
   const before = await sha(chunk)
-  const r = run([appArg('28'), '--apply'])
+  const r = run([appArg('28'), '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before)
 })
 await caseRun('29-backup-write-interrupt-cleans-half-file', async () => {
   await makeApp('29'); const chunk = chunkOf('29')
-  const r = run([appArg('29'), '--apply', '--inject=write-interrupt:external-backup'])
+  const r = run([appArg('29'), '--production', '--inject=write-interrupt:external-backup'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /install failed/)
   assert.equal(await sha(chunk), PINNED)
@@ -393,7 +400,7 @@ await caseRun('31-new-recipe-experimental-apply', async () => {
   const dry = run([newAppArg('31')])
   assert.equal(dry.status, 0, dry.stderr)
   assert.doesNotMatch(dry.stdout, /\[experimental\] recipe/, 'verified recipe must not carry the recipe-level experimental banner (tool-level banner stays by design)')
-  const r = run([newAppArg('31'), '--apply'])
+  const r = run([newAppArg('31'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.equal(await sha(chunk), NEW_POST)
   const manifest = JSON.parse(await readFile(newManifestOf('31'), 'utf8'))
@@ -403,25 +410,25 @@ await caseRun('31-new-recipe-experimental-apply', async () => {
 })
 await caseRun('32-new-recipe-rollback', async () => {
   const chunk = newApps['31'].chunk
-  const r = run([newAppArg('31'), '--rollback', '--apply'])
+  const r = run([newAppArg('31'), '--rollback', '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.equal(await sha(chunk), NEW_PINNED, 'rollback restores the new build original bytes')
   assert.equal(await exists(chunk + '.v2bak'), false)
 })
 await caseRun('33-new-recipe-reapply-idempotent', async () => {
   const chunk = newApps['31'].chunk
-  assert.equal(run([newAppArg('31'), '--apply']).status, 0, 're-apply after rollback')
-  const r = run([newAppArg('31'), '--apply'])
+  assert.equal(run([newAppArg('31'), '--production']).status, 0, 're-apply after rollback')
+  const r = run([newAppArg('31'), '--production'])
   assert.equal(r.status, 0, r.stderr)
   assert.match(r.stdout, /already patched and complete/)
   assert.equal(await sha(chunk), NEW_POST)
 })
 await caseRun('34-new-recipe-third-hash-refused', async () => {
   await makeAppNew('34'); const chunk = newApps['34'].chunk
-  assert.equal(run([newAppArg('34'), '--apply']).status, 0, 'precondition: clean install')
+  assert.equal(run([newAppArg('34'), '--production']).status, 0, 'precondition: clean install')
   await writeFile(chunk, Buffer.concat([await readFile(chunk), Buffer.from('//third')]))
   const before = await sha(chunk)
-  const r = run([newAppArg('34'), '--apply'])
+  const r = run([newAppArg('34'), '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /no registered recipe/)
   assert.equal(await sha(chunk), before)
@@ -435,10 +442,32 @@ await caseRun('35-cross-build-bytes-name-mismatch-refused', async () => {
   await writeFile(chunk, await readFile(NEW_CHUNK_SRC))
   const appReal35 = await realpath(dir)
   const before = await sha(chunk)
-  const r = run(['--app=' + appReal35, '--apply'])
+  const r = run(['--app=' + appReal35, '--production'])
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /does not match recipe/)
   assert.equal(await sha(chunk), before)
+})
+
+await caseRun('36-outside-local-tmpdir-app-fully-usable', async () => {
+  // macOS: os.tmpdir() starts with /var, itself a symlink on macOS — the
+  // input-chain symlink defense refuses that on purpose. Resolve first so this
+  // case tests path-independence, not symlink tolerance (cases 24/30 cover that).
+  const dir = path.join(await realpath(os.tmpdir()), 'hbp-36-' + Date.now())
+  const assets = path.join(dir, 'Contents/Resources/app.asar.unpacked/dist/assets')
+  await mkdir(assets, { recursive: true })
+  const chunk = path.join(assets, 'layout-CSIx4R7D.js')
+  await writeFile(chunk, await readFile(NEW_CHUNK_SRC))
+  const dry = run(['--app=' + dir])
+  assert.equal(dry.status, 0, dry.stderr)
+  assert.match(dry.stdout, /\[plan\] patch layout-CSIx4R7D\.js/, 'dry-run must work outside .local (no path restriction)')
+  assert.equal(await sha(chunk), NEW_PINNED, 'dry-run wrote nothing')
+  const r = run(['--app=' + dir, '--production'])
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(await sha(chunk), NEW_POST, '--production writes outside .local')
+  const rb = run(['--app=' + dir, '--rollback', '--production'])
+  assert.equal(rb.status, 0, rb.stderr)
+  assert.equal(await sha(chunk), NEW_PINNED, 'rollback restores outside .local')
+  await rm(dir, { recursive: true, force: true })
 })
 
 const report = { at: new Date().toISOString(), base, total: results.length, failed, results }

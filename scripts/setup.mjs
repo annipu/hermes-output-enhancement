@@ -156,7 +156,7 @@ async function main() {
   if (refused(hostState) || refused(pluginState)) {
     report.status = 'refused'
     say('[refuse] preflight failed — NOTHING was written (all-or-nothing)')
-    if (hostState.state === 'refused' && /pinned|unknown build|experiment root/.test(hostState.why ?? '')) {
+    if (hostState.state === 'refused' && /pinned|unknown build|running/.test(hostState.why ?? '')) {
       say('[hint] the host build is not the pinned patch build — until the patch is re-derived for it,')
       say('       this entry refuses the whole install; the plugin alone remains available via: npm run plugin:install')
     }
@@ -181,7 +181,7 @@ async function main() {
           if (r.status !== 0) { report.status = 'failed'; die(`plugin uninstall failed: ${firstError(r.stderr)}`) }
         } else report.steps.push({ name: 'plugin-uninstall', ok: true, detail: 'noop' })
         if (WITH_HOST && hostState.state === 'would-rollback') {
-          const r = hostRun(['--rollback', '--apply'])
+          const r = hostRun(['--rollback', '--production'])
           report.steps.push({ name: 'host-rollback', ok: r.status === 0, detail: firstError(r.status === 0 ? r.stdout : r.stderr) })
           if (r.status !== 0) { report.status = 'failed'; die(`host rollback failed: ${firstError(r.stderr)}`) }
         }
@@ -191,7 +191,7 @@ async function main() {
         // step 1: host patch (skipped when already done — by us in this tx, or pre-existing)
         const hostOwned = pending?.hostPatchedByUs ?? false
         if (hostState.state === 'would-patch' || hostState.state === 'finalizable') {
-          const r = hostRun(['--apply'])
+          const r = hostRun(['--production'])
           const ok = r.status === 0
           report.steps.push({ name: 'host-patch', ok, detail: firstError(ok ? r.stdout : r.stderr) })
           if (!ok) { report.status = 'failed'; tx.status = 'failed'; await writeTx(tx); die(`host patch failed: ${firstError(r.stderr)}`) }
@@ -213,9 +213,9 @@ async function main() {
             if (INJECT.has('host-rollback-fault')) {
               const assets = path.join(appArg, 'Contents/Resources/app.asar.unpacked/dist/assets')
               await chmod(assets, 0o555).catch(() => {})
-              cr = hostRun(['--rollback', '--apply'])
+              cr = hostRun(['--rollback', '--production'])
               await chmod(assets, 0o755).catch(() => {})
-            } else cr = hostRun(['--rollback', '--apply'])
+            } else cr = hostRun(['--rollback', '--production'])
             if (cr.status === 0 && /rolled back/.test(cr.stdout)) {
               report.steps.push({ name: 'host-rollback-compensation', ok: true, detail: 'patch applied by this transaction was rolled back' })
               report.status = 'compensated'; tx.status = 'compensated'; await writeTx(tx)
