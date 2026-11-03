@@ -126,13 +126,13 @@ original + manifest) and byte-exact rollback. Visitors wanting the host fix
 should use the source patch route under [`host-patch/`](host-patch/) instead.
 
 The verification matrices are published for transparency:
-`scripts/host-binary-patch-check.mjs` (36 cases — needs project-internal
-frozen build fixtures under `.local/`, not expected to run in a fresh clone),
-`scripts/setup-check.mjs` (16 cases) and `scripts/setup-wizard-check.mjs`
-(29 cases — injectable-IO unit matrix plus two real-fixture integrations
-against an isolated plugin target; never writes the working app). The setup
-and wizard matrices create their own `.local` scratch and run in a fresh
-clone.
+`scripts/host-binary-patch-check.mjs` (36 cases) and `scripts/setup-check.mjs`
+(16 cases) need project-internal frozen build fixtures under `.local/` and
+are not expected to run in a fresh clone — they fail cleanly with a nonzero
+exit instead. `scripts/setup-wizard-check.mjs` (29 cases — injectable-IO
+unit matrix plus two real-fixture integrations against an isolated plugin
+target; never writes the working app) creates its own `.local` scratch and
+does run in a fresh clone (verified: `npm run setup:wizard:check` → 29/29).
 
 Files in the distribution directory:
 
