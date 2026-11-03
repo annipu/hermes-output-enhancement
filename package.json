@@ -11,6 +11,10 @@
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
     "plugin:install": "node scripts/plugin-install.mjs",
-    "plugin:uninstall": "node scripts/plugin-install.mjs uninstall"
+    "plugin:uninstall": "node scripts/plugin-install.mjs uninstall",
+    "host:patch": "node scripts/host-binary-patch.mjs",
+    "host:patch:check": "node scripts/host-binary-patch-check.mjs",
+    "setup": "node scripts/setup.mjs",
+    "setup:check": "node scripts/setup-check.mjs"
   }
 }

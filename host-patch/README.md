@@ -17,6 +17,7 @@ default state, and per-plugin failures are isolated.
   (patched build commit `549ba06f0806e4e5d477e8f83dc6015b8e164d62`), macOS arm64 —
   12/12 native checks, including bidirectional live sync between two real windows, rapid
   toggles, re-enable after disable, restart, uninstall and full content fidelity
+- **Prebuilt-app alternative:** for the two registered stock macOS builds (2026-11-02 and the 2026-11-03 self-update), `scripts/host-binary-patch.mjs` applies the equivalent change to a single file inside an already-built Hermes.app — full-hash pinned, transactional, byte-exact rollback. Maintainer-oriented: it accepts only app copies inside its own `.local` experiment root. Registered builds and their pre/post file hashes are listed in `scripts/install-status.mjs`.
 - **Windows/Linux:** untested
 - **License:** Hermes is MIT-licensed; this patch is provided under the same terms,
   maintained by ANNIPU, not submitted upstream
