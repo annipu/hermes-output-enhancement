@@ -86,15 +86,13 @@ is written. It requires an explicit `--app=<Hermes.app>`, prints and saves a
 unified report to `.local/setup-latest.json`, and a failed plugin step rolls
 back only a host patch applied by the same transaction (a pre-existing patch
 is never touched). `--uninstall` removes only the plugin; add
-`--with-host-patch` to also revert the patch. Two maintainer-oriented defaults
-apply: the plugin target defaults to a `.local` test directory (pass
+`--with-host-patch` to also revert the patch. Two defaults apply: the plugin target defaults to a `.local` test directory (pass
 `--plugin-target=` for a real location), and the host half
-(`scripts/host-binary-patch.mjs`) accepts only app copies inside its own
-`.local` experiment root — full-file SHA-256 pinned recipes, transactional
+(`scripts/host-binary-patch.mjs`) is write-gated by an explicit `--production` flag — dry-run is the read-only default on any app copy (the target app must not be running); full-file SHA-256 pinned recipes, transactional
 write, triple backup (in-app `.v2bak` + external original + manifest) and
 byte-exact rollback. Visitors wanting the host fix should use the source
 patch route under [`host-patch/`](host-patch/) instead. The verification
-matrices `scripts/host-binary-patch-check.mjs` (35 cases) and
+matrices `scripts/host-binary-patch-check.mjs` (36 cases) and
 `scripts/setup-check.mjs` (13 cases) are published for transparency; they
 need project-internal frozen build fixtures under `.local/` and are not
 expected to run in a fresh clone.
