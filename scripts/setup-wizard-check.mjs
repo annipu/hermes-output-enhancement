@@ -15,7 +15,7 @@ import { runWizard, makeAskAdapter, MENU_TITLE } from './setup-wizard.mjs'
 import { DEFAULT_APP } from './install-status.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-await mkdir(path.join(root, '.local'), { recursive: true })
+await mkdir(path.join(root, '.local', 'tmp'), { recursive: true }) // self-created: a fresh clone has no .local at all
 const PT_DEFAULT = path.join(os.homedir(), '.hermes', 'desktop-plugins')
 
 class ScriptIO {
