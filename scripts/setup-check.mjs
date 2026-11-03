@@ -2,7 +2,7 @@
 // Node-assert based: per-case exit code, output, target byte hashes, plugin
 // directory state, transaction-record status and the unified report are all
 // checked; any failure fails the whole run with a nonzero exit.
-// Coverage (13 cases, review-agreed 2026-11-03):
+// Coverage (16 cases; 14-16 added with the selectedComponents + transaction-hardening pass):
 //   dry-run zero-write / fresh install (host+plugin+tx record) / idempotent
 //   rerun / unknown host build refuses AND the plugin is untouched / plugin
 //   preflight failure leaves the host untouched / host-success-then-plugin-
@@ -202,6 +202,36 @@ await caseRun('13-older-plugin-upgrades-through-entry', async () => {
   assert.equal(info.version, sourceInfo.version, 'the old target must be upgraded to the source version')
   assert.equal(info.pluginSha256, sourceInfo.pluginSha256)
   assert.equal(await sha(apps['13'].chunk), POST)
+})
+
+await caseRun('14-plugin-only-proceeds-on-unknown-host', async () => {
+  await makeApp('14'); await makePT('14')
+  await writeFile(apps['14'].chunk, Buffer.concat([await readFile(apps['14'].chunk), Buffer.from('//unknown-build')]))
+  const before = await sha(apps['14'].chunk)
+  const r = run(setupArgs('14', ['--components=plugin', '--apply']))
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(await exists(path.join(pluginDirOf('14'), 'plugin.js')), true, 'plugin-only must install despite an unknown host build')
+  assert.equal(await sha(apps['14'].chunk), before, 'host bytes untouched by a plugin-only run')
+  const report = JSON.parse(await readFile(path.join(root, '.local', 'setup-latest.json'), 'utf8'))
+  assert.equal(report.host.probe, 'unknown', 'the non-selected host is reported read-only, never guessed')
+  assert.equal(report.overall, 'incomplete', 'plugin-only success is NOT a complete installation')
+})
+await caseRun('15-host-only-skips-plugin', async () => {
+  await makeApp('15'); await makePT('15')
+  const r = run(setupArgs('15', ['--components=host', '--apply']))
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(await sha(apps['15'].chunk), POST, 'host patched')
+  assert.equal(await exists(pluginDirOf('15')), false, 'a host-only run must not touch the plugin directory')
+  const report = JSON.parse(await readFile(path.join(root, '.local', 'setup-latest.json'), 'utf8'))
+  assert.equal(report.overall, 'incomplete')
+})
+await caseRun('16-postverify-drift-is-nonzero', async () => {
+  await makeApp('16'); await makePT('16')
+  const r = run(setupArgs('16', ['--apply', '--inject=post-verify-tamper']))
+  assert.notEqual(r.status, 0, 'post-verify failure must not exit 0')
+  const report = JSON.parse(await readFile(path.join(root, '.local', 'setup-latest.json'), 'utf8'))
+  assert.equal(report.status, 'installed-with-warnings')
+  assert.equal((await latestTxOf('16')).status, 'installed-with-warnings')
 })
 
 const report = { at: new Date().toISOString(), base, total: results.length, failed, results }
