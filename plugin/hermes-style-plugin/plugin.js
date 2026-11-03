@@ -6,8 +6,8 @@ const ID = 'hermes-style-plugin'
 
 export default {
   id: ID,
-  name: 'Hermes Style · 回复样式',
-  description: '只调整助手回复的显示样式，保留全部原文和表格结构。',
+  name: 'Hermes Output Style Enhancement',
+  description: 'Enhances how existing Markdown in assistant replies is displayed — headings, bold text, inline code and tables get theme-aware light/dark styling. Display only: reply content is never modified; no model calls, session reads or history writes. Off by default; toggle in Settings → Capabilities → Plugins.',
   defaultEnabled: false,
   register(ctx) {
     if (typeof ctx?.onDispose !== 'function') {

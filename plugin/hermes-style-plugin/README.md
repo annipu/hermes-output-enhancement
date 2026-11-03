@@ -1,6 +1,6 @@
-# Hermes Style (alpha)
+# Hermes Output Style Enhancement (alpha)
 
-Version 0.1.0-alpha.1 — a display-only plugin for Hermes Desktop.
+Version 0.1.0-alpha.2 — a display-only plugin for Hermes Desktop.
 
 This directory is a complete, pre-built distribution. No npm packages, build
 steps or backend components are involved:
