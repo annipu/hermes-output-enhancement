@@ -23,6 +23,16 @@ default state, and per-plugin failures are isolated.
 
 ## Applying
 
+Preferred — the guarded script (verifies the pinned pre-patch hash, is idempotent,
+verifies the post-apply hash, and refuses any mismatch):
+
+```bash
+./host-patch/apply.sh /path/to/hermes-source-checkout
+# then build the desktop app following Hermes's own instructions
+```
+
+Manual alternative:
+
 ```bash
 # inside a Hermes source checkout:
 git apply --check host-patch/hermes-plugin-window-sync-v2.patch   # dry-run first
