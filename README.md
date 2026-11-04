@@ -10,7 +10,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 - Reply content is never modified: no rewriting, summarizing, adding, deleting or reordering. Heading levels, list order, code content and whitespace, link text and targets, and table row/column counts, headers and cell values stay exactly as the model produced them.
 - No model or gateway calls, no session reads, no writes to SOUL, profiles, memory or conversation history.
 
-## Current status — alpha
+## Current status
 
 - Version `0.1.2`, **off by default**; opt in via the app's own plugin toggle.
 - v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, links and strikethrough kept fully native.
@@ -30,7 +30,7 @@ Within assistant replies only — ordinary paragraphs, user messages and app chr
 - Bold: orange accent (`#d68c27` light / `#f5a742` dark). Italic: gold (`#b0851f` light / `#e5c07b` dark). Font weights stay native — nothing is forced bolder.
 - Inline code: left fully native (the tinted-chip styling of earlier alphas was removed in v0.1.2).
 - Tables: layout enhancements kept — distinct header row, full grid, roomier cells, smarter first-column width for two-column tables — with header text back to its native muted tone. All data is preserved; wide tables scroll instead of being crushed.
-- Exclusions: alerts/callouts, code blocks, links, list markers and strikethrough keep native styling in every state.
+- Exclusions: alerts/callouts, code blocks, list markers, strikethrough and link colors stay native in every tested state; emphasis nested inside a link follows the emphasis color (visible in the snapshots below).
 
 Colors follow the active theme's light/dark variants.
 
