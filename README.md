@@ -1,6 +1,6 @@
 # hermes-plugin-contentstyle
 
-Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent.nousresearch.com/docs). It adjusts how **existing** Markdown renders in assistant replies — headings, bold text, inline code and tables — and nothing else.
+Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent.nousresearch.com/docs). It adjusts how **existing** Markdown renders in assistant replies — headings, bold and italic emphasis and tables — and nothing else.
 
 > Unofficial community plugin. Not affiliated with or endorsed by Nous Research.
 
@@ -12,7 +12,8 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 ## Current status — alpha
 
-- Version `0.1.0-alpha.2`, **off by default**; opt in via the app's own plugin toggle.
+- Version `0.1.2`, **off by default**; opt in via the app's own plugin toggle.
+- v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, links and strikethrough kept fully native.
 - The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-style-plugin/`) — see *Install*; no build step is needed.
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
@@ -25,11 +26,24 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 Within assistant replies only — ordinary paragraphs, user messages and app chrome are untouched:
 
-- Headings and bold text: accent color and weight, so already-marked emphasis stands out.
-- Inline code: tinted background, border and padding.
-- Tables: distinct header row, full grid, roomier cells, and a smarter first-column width for two-column tables. All data is preserved; wide tables scroll instead of being crushed.
+- Headings H1–H6: violet accent in both themes — deep `#704098` on light, `#9d7cd8` on dark; the same hue family across themes, differing only in lightness.
+- Bold: orange accent (`#d68c27` light / `#f5a742` dark). Italic: gold (`#b0851f` light / `#e5c07b` dark). Font weights stay native — nothing is forced bolder.
+- Inline code: left fully native (the tinted-chip styling of earlier alphas was removed in v0.1.2).
+- Tables: layout enhancements kept — distinct header row, full grid, roomier cells, smarter first-column width for two-column tables — with header text back to its native muted tone. All data is preserved; wide tables scroll instead of being crushed.
+- Exclusions: alerts/callouts, code blocks, links, list markers and strikethrough keep native styling in every state.
 
 Colors follow the active theme's light/dark variants.
+
+## Snapshots (v0.1.2)
+
+Same-content four-quadrant comparisons captured from the real desktop app in an isolated native run (plugin bytes `65c3fdfa…`). Each row is one theme × plugin state; columns are the Chinese and English fixture runs.
+
+| Theme × state | zh-CN | English |
+|---|---|---|
+| Light / off | ![zh-CN light off](snapshots/0.1.2/zh-CN-light-off.png) | ![en light off](snapshots/0.1.2/en-light-off.png) |
+| Light / on | ![zh-CN light on](snapshots/0.1.2/zh-CN-light-on.png) | ![en light on](snapshots/0.1.2/en-light-on.png) |
+| Dark / on | ![zh-CN dark on](snapshots/0.1.2/zh-CN-dark-on.png) | ![en dark on](snapshots/0.1.2/en-dark-on.png) |
+| Dark / off | ![zh-CN dark off](snapshots/0.1.2/zh-CN-dark-off.png) | ![en dark off](snapshots/0.1.2/en-dark-off.png) |
 
 ## Build (only if you change the stylesheet)
 
