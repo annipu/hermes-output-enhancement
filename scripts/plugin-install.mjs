@@ -1,4 +1,4 @@
-// Version-aware install/uninstall/upgrade for the hermes-style-plugin disk plugin.
+// Version-aware install/uninstall/upgrade for the hermes-output-enhancement disk plugin.
 //
 // Install states: absent -> fresh install; older -> upgrade (backup first);
 // same version -> idempotent no-op, or refuse on byte mismatch without --force;
@@ -33,13 +33,16 @@ import { fileURLToPath } from 'node:url'
 import { probeHost } from './install-status.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const PLUGIN_ID = 'hermes-style-plugin'
+const PLUGIN_ID = 'hermes-output-enhancement'
 const KNOWN_FILES = ['plugin.js', 'build-info.json', 'README.md']
 
 const argv = process.argv.slice(2)
 const action = argv.includes('uninstall') ? 'uninstall' : 'install'
 const APPLY = argv.includes('--apply')
 const FORCE = argv.includes('--force')
+// Machine-readable read-only plan for the wizard (no execution, no human
+// output): prints exactly one JSON line with the shared adjudication.
+const PLAN_JSON = argv.includes('--plan-json')
 // Last occurrence wins: lets callers override earlier flags (e.g. a wrapper
 // that pre-seeds defaults). findLast is available on Node >= 18.
 const opt = name => { const hit = argv.findLast(a => a.startsWith(`--${name}=`)); return hit ? hit.slice(name.length + 3) : null }
@@ -80,6 +83,33 @@ function compareVersion(a, b) {
   return 0
 }
 
+// Pure install adjudication shared by the CLI verdicts and the wizard's
+// read-only --plan-json probe: same inputs, same messages, one code path.
+function decideInstall(src, tgt, force, targetDir) {
+  if (tgt.state === 'foreign') return { refuse: `refuse: ${tgt.why} — resolve it manually before installing here (intentionally not overridable with --force).` }
+  const foreignId = tgt.state === 'present' && tgt.info?.id && tgt.info.id !== PLUGIN_ID
+  const unknownish = tgt.state === 'present' && (tgt.unknown.length || !tgt.info || !tgt.jsSha || compareVersion(tgt.info?.version, src.info.version) === null)
+  if (tgt.state === 'absent') return { verdict: 'install', backupLabel: 'fresh', planText: `fresh install v${src.info.version} -> ${targetDir}`, runKind: 'fresh' }
+  if (foreignId) {
+    if (!force) return { refuse: `refuse: target holds a foreign plugin id '${tgt.info.id}' — refusing to replace another plugin's directory.` }
+    return { verdict: 'force-replace', backupLabel: 'force-foreign-id', planText: `FORCE replace foreign-id target '${tgt.info.id}' with v${src.info.version} (backup first)`, runKind: 'swap' }
+  }
+  if (unknownish) {
+    const why = tgt.unknown.length ? `unexpected entries (${tgt.unknown.join(', ')})` : tgt.info ? `unparsable version ${JSON.stringify(tgt.info.version)}` : 'missing/corrupt build-info or plugin.js'
+    if (!force) return { refuse: `refuse: target unreadable — ${why}. Re-run with --force (a backup is taken first).` }
+    return { verdict: 'force-replace', backupLabel: 'force-unknown', planText: `FORCE replace unreadable target with v${src.info.version} (${why}; backup first)`, runKind: 'swap' }
+  }
+  const cmp = compareVersion(tgt.info.version, src.info.version)
+  if (cmp < 0) return { verdict: 'upgrade', backupLabel: `upgrade-${tgt.info.version}-to-${src.info.version}`, planText: `UPGRADE v${tgt.info.version} -> v${src.info.version} (backup first, staged swap)`, runKind: 'swap' }
+  if (cmp === 0 && tgt.jsSha === src.jsSha) return { verdict: 'noop', planText: `already at v${src.info.version} with identical bytes — nothing to do`, runKind: null }
+  if (cmp === 0) {
+    if (!force) return { refuse: `refuse: target v${tgt.info.version} has the same version but different plugin.js bytes (${tgt.jsSha.slice(0, 8)}… vs ${src.jsSha.slice(0, 8)}…) — re-run with --force (a backup is taken first).` }
+    return { verdict: 'force-replace', backupLabel: 'force-same-version', planText: 'FORCE replace same-version divergent target (backup first, staged swap)', runKind: 'swap' }
+  }
+  if (!force) return { refuse: `refuse: target v${tgt.info.version} is NEWER than source v${src.info.version} — refusing downgrade; use --force if intentional (backup first).` }
+  return { verdict: 'force-downgrade', backupLabel: `downgrade-to-${src.info.version}`, planText: `FORCE downgrade v${tgt.info.version} -> v${src.info.version} (backup first, staged swap)`, runKind: 'swap' }
+}
+
 async function loadSource() {
   const infoPath = path.join(sourceDir, 'build-info.json')
   if (!(await exists(infoPath))) throw new Error(`source build missing — run the plugin build first, or pass --source= (looked in ${sourceDir})`)
@@ -115,7 +145,7 @@ async function readTarget() {
 // Stage the whitelisted source files next to the target (same filesystem),
 // verify the staged bytes, then swap; a failed switch restores from backup.
 async function stageAndSwap(src, { backup = true } = {}) {
-  const staging = path.join(targetBase, `.hermes-style-plugin.staging-${process.pid}`)
+  const staging = path.join(targetBase, `.hermes-output-enhancement.staging-${process.pid}`)
   await rm(staging, { recursive: true, force: true })
   await mkdir(staging, { recursive: true })
   for (const name of Object.keys(src.files)) await cp(src.files[name], path.join(staging, name))
@@ -141,10 +171,11 @@ async function stageAndSwap(src, { backup = true } = {}) {
 }
 
 try {
+  if (PLAN_JSON && action === 'uninstall') { console.log(JSON.stringify({ ok: false, error: 'plan-json supports install only' })); process.exit(0) }
   // Uninstall never touches the source build.
   const src = action === 'install' ? await loadSource() : null
   const tgt = await readTarget()
-  console.log(JSON.stringify({ action, apply: APPLY, force: FORCE,
+  if (!PLAN_JSON) console.log(JSON.stringify({ action, apply: APPLY, force: FORCE,
     source: src ? { dir: sourceDir, version: src.info.version, pluginSha256: src.jsSha } : null,
     target: { dir: targetDir, state: tgt.state, version: tgt.info?.version ?? null, id: tgt.info?.id ?? null, unknownFiles: tgt.unknown ?? (tgt.why ? [tgt.why] : []) } }, null, 2))
 
@@ -161,14 +192,19 @@ try {
       run = async () => { const b = backupPath(); await mkdir(backupBase, { recursive: true }); await cp(targetDir, b, { recursive: true }); await rm(targetDir, { recursive: true, force: true }); return b }
     }
   } else {
-    if (tgt.state === 'foreign') throw refuse(`refuse: ${tgt.why} — resolve it manually before installing here (intentionally not overridable with --force).`)
-    const foreignId = tgt.state === 'present' && tgt.info?.id && tgt.info.id !== PLUGIN_ID
-    const unknownish = tgt.state === 'present' && (tgt.unknown.length || !tgt.info || !tgt.jsSha || compareVersion(tgt.info?.version, src.info.version) === null)
-    if (tgt.state === 'absent') {
-      verdict = 'install'; backupLabel = 'fresh'
-      planText = `fresh install v${src.info.version} -> ${targetDir}`
+    const decision = decideInstall(src, tgt, FORCE, targetDir)
+    if (decision.refuse) {
+      if (PLAN_JSON) {
+        console.log(JSON.stringify({ ok: true, verdict: 'refused', reason: decision.refuse, planText: null,
+          source: { version: src.info.version, sha: src.jsSha }, target: { state: tgt.state, version: tgt.info?.version ?? null, sha: tgt.jsSha } }))
+        process.exit(0)
+      }
+      throw refuse(decision.refuse)
+    }
+    verdict = decision.verdict; backupLabel = decision.backupLabel; planText = decision.planText
+    if (decision.runKind === 'fresh') {
       run = async () => {
-        const staging = path.join(targetBase, `.hermes-style-plugin.staging-${process.pid}`)
+        const staging = path.join(targetBase, `.hermes-output-enhancement.staging-${process.pid}`)
         await mkdir(staging, { recursive: true })
         for (const name of Object.keys(src.files)) await cp(src.files[name], path.join(staging, name))
         const stagedSha = sha(await readFile(path.join(staging, 'plugin.js')))
@@ -176,40 +212,16 @@ try {
         await rename(staging, targetDir)
         return null
       }
-    } else if (foreignId) {
-      if (!FORCE) throw refuse(`refuse: target holds a foreign plugin id '${tgt.info.id}' — refusing to replace another plugin's directory.`)
-      verdict = 'force-replace'; backupLabel = 'force-foreign-id'
-      planText = `FORCE replace foreign-id target '${tgt.info.id}' with v${src.info.version} (backup first)`
+    } else if (decision.runKind === 'swap') {
       run = () => stageAndSwap(src)
-    } else if (unknownish) {
-      const why = tgt.unknown.length ? `unexpected entries (${tgt.unknown.join(', ')})` : tgt.info ? `unparsable version ${JSON.stringify(tgt.info.version)}` : 'missing/corrupt build-info or plugin.js'
-      if (!FORCE) throw refuse(`refuse: target unreadable — ${why}. Re-run with --force (a backup is taken first).`)
-      verdict = 'force-replace'; backupLabel = 'force-unknown'
-      planText = `FORCE replace unreadable target with v${src.info.version} (${why}; backup first)`
-      run = () => stageAndSwap(src)
-    } else {
-      const cmp = compareVersion(tgt.info.version, src.info.version)
-      if (cmp < 0) {
-        verdict = 'upgrade'; backupLabel = `upgrade-${tgt.info.version}-to-${src.info.version}`
-        planText = `UPGRADE v${tgt.info.version} -> v${src.info.version} (backup first, staged swap)`
-        run = () => stageAndSwap(src)
-      } else if (cmp === 0 && tgt.jsSha === src.jsSha) {
-        verdict = 'noop'
-        planText = `already at v${src.info.version} with identical bytes — nothing to do`
-      } else if (cmp === 0) {
-        if (!FORCE) throw refuse(`refuse: target v${tgt.info.version} has the same version but different plugin.js bytes (${tgt.jsSha.slice(0, 8)}… vs ${src.jsSha.slice(0, 8)}…) — re-run with --force (a backup is taken first).`)
-        verdict = 'force-replace'; backupLabel = 'force-same-version'
-        planText = 'FORCE replace same-version divergent target (backup first, staged swap)'
-        run = () => stageAndSwap(src)
-      } else {
-        if (!FORCE) throw refuse(`refuse: target v${tgt.info.version} is NEWER than source v${src.info.version} — refusing downgrade; use --force if intentional (backup first).`)
-        verdict = 'force-downgrade'; backupLabel = `downgrade-to-${src.info.version}`
-        planText = `FORCE downgrade v${tgt.info.version} -> v${src.info.version} (backup first, staged swap)`
-        run = () => stageAndSwap(src)
-      }
     }
   }
 
+  if (PLAN_JSON) {
+    console.log(JSON.stringify({ ok: true, verdict, planText,
+      source: { version: src.info.version, sha: src.jsSha }, target: { state: tgt.state, version: tgt.info?.version ?? null, sha: tgt.jsSha } }))
+    process.exit(0)
+  }
   console.log(`[plan] ${planText}`)
   // The plugin alone is NOT the complete installation: probe the host-patch
   // state read-only (safe on a running app) and report both sides. A probe
@@ -235,6 +247,7 @@ try {
   }
   console.log('[status] complete installation verified: plugin installed + host patch verified.')
 } catch (error) {
+  if (PLAN_JSON) { console.log(JSON.stringify({ ok: false, error: String(error.message || error) })); process.exit(1) }
   console.error(`[${error.code === 1 ? 'refuse' : 'error'}] ${error.message}`)
   process.exit(1)
 }

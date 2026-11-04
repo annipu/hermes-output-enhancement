@@ -49,7 +49,7 @@ if (COMPONENTS_RAW != null && !/^(plugin|host)(,(plugin|host))?$/.test(COMPONENT
 if (COMPONENTS_RAW != null && UNINSTALL) die('--components= only applies to install mode; uninstall selects components via --with-host-patch')
 const appArg = opt('app')
 const pluginTarget = opt('plugin-target') ?? path.join(root, '.local', 'unified-test', 'desktop-plugins')
-const pluginSource = opt('plugin-source') ?? path.join(root, 'plugin', 'hermes-style-plugin')
+const pluginSource = opt('plugin-source') ?? path.join(root, 'plugin', 'hermes-output-enhancement')
 
 const HOST_TOOL = path.join(root, 'scripts', 'host-binary-patch.mjs')
 const PLUGIN_TOOL = path.join(root, 'scripts', 'plugin-install.mjs')
@@ -326,7 +326,7 @@ async function main() {
   // a plugin-only success is NOT a complete installation.
   const hostProbe = await probeHost(appArg)
   let pluginPresent = false
-  try { await readdir(path.join(pluginTarget, 'hermes-style-plugin')); pluginPresent = true } catch {}
+  try { await readdir(path.join(pluginTarget, 'hermes-output-enhancement')); pluginPresent = true } catch {}
   report.overall = hostProbe.state === 'patched-verified' && pluginPresent ? 'complete' : 'incomplete'
 
   await mkdir(path.dirname(REPORT), { recursive: true })

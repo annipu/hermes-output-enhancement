@@ -84,7 +84,7 @@ export async function probeHost(appPath) {
 // Plugin facts only (no source comparison — callers combine with their source).
 export async function probePlugin(targetBase) {
   const base = targetBase ?? path.join(os.homedir(), '.hermes', 'desktop-plugins')
-  const dir = path.join(base, 'hermes-style-plugin')
+  const dir = path.join(base, 'hermes-output-enhancement')
   const st = await lstat(dir).catch(() => null)
   if (!st) return { dir, state: 'absent' }
   if (!st.isDirectory() || st.isSymbolicLink()) return { dir, state: 'foreign' }

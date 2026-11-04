@@ -26,7 +26,7 @@
 //     quarantine+Gatekeeper scenario stays out of scope).
 import os from 'node:os'
 import path from 'node:path'
-import { stat } from 'node:fs/promises'
+import { stat, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import readline from 'node:readline'
@@ -85,6 +85,18 @@ export async function runWizard(io, deps = {}) {
     const st = await stat(reportPath).catch(() => null)
     return !!st && st.mtimeMs >= startedAt
   })
+  // Read-only plan adjudication from the REAL installer (plugin-install
+  // --plan-json): source/target versions, full-hash noop check and refusal
+  // reasons — never a second version-compare implementation.
+  const planPlugin = deps.plan ?? (async (opts = {}) => {
+    const args = [path.join(root, 'scripts', 'plugin-install.mjs'), '--plan-json']
+    if (opts.targetBase) args.push('--target=' + opts.targetBase)
+    const r = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: root })
+    try { return JSON.parse((r.stdout ?? '').trim()) } catch {
+      return { ok: false, error: (r.stderr || r.stdout || 'plugin-install --plan-json produced no parsable output').trim().slice(0, 300) }
+    }
+  })
+  const reportRead = deps.reportRead ?? (async () => { try { return JSON.parse(await readFile(reportPath, 'utf8')) } catch { return null } })
   const cancel = async loc => { out(T(loc, 'cancelled')); return 0 }
 
   // --- 1) language menu (visible every run; Enter keeps the default) ---
@@ -139,22 +151,40 @@ export async function runWizard(io, deps = {}) {
 
   // --- 3) read-only status of the CHOSEN paths (probes never write) ---
   const status = await probe(app, pt)
+  const pluginPlan = await planPlugin({ targetBase: pt })
   out('')
   out(T(locale, 'currentStatus') + ':')
-  out('  ' + (status.plugin.state === 'present'
-    ? T(locale, 'pluginPresent', [status.plugin.version ?? status.plugin.pluginSha256?.slice(0, 8) ?? '?'])
-    : status.plugin.state === 'foreign'
-      ? T(locale, 'pluginForeign', [status.plugin.dir ?? pt])
-      : T(locale, 'pluginAbsent')))
+  if (!pluginPlan.ok) {
+    out('[error] ' + (pluginPlan.error ?? 'plugin plan failed'))
+    out(T(locale, 'failed'))
+    return 1
+  }
+  if (pluginPlan.verdict === 'refused') {
+    out('  ' + T(locale, 'pluginPlanRefused', [pluginPlan.reason ?? '']))
+    return 1
+  }
+  if (pluginPlan.verdict === 'noop') out('  ' + T(locale, 'pluginPlanLatest', [pluginPlan.source?.version ?? '?']))
+  else if (pluginPlan.verdict === 'upgrade') out('  ' + T(locale, 'pluginPlanUpgrade', [pluginPlan.target?.version ?? '?', pluginPlan.source?.version ?? '?']))
+  else out('  ' + T(locale, 'pluginPlanInstall', [pluginPlan.source?.version ?? '?']))
   const hostKey = { 'patched-verified': 'hostPatched', 'unpatched-supported': 'hostUnpatched', 'unknown': 'hostUnknown' }[status.host.state] ?? 'hostNoApp'
   out('  ' + (hostKey === 'hostNoApp' ? T(locale, 'hostNoApp', [status.host.state]) : T(locale, hostKey)))
 
   // --- 4) component selection (all four combinations) ---
   const sel = new Set()
+  const pluginLatest = pluginPlan.verdict === 'noop'
+  // Everything current: plugin byte-identical AND host verified — nothing to
+  // ask, preview or execute. This is success, not a failure.
+  if (pluginLatest && status.host.state === 'patched-verified') {
+    out('')
+    out(T(locale, 'allUpToDate'))
+    return 0
+  }
   out('')
-  const wantPlugin = await askYn(T(locale, 'askPlugin') + ' ')
-  if (wantPlugin === null) return cancel(locale)
-  if (wantPlugin) sel.add('plugin')
+  if (!pluginLatest) {
+    const wantPlugin = await askYn(T(locale, 'askPlugin') + ' ')
+    if (wantPlugin === null) return cancel(locale)
+    if (wantPlugin) sel.add('plugin')
+  }
   if (status.host.state === 'patched-verified') {
     out(T(locale, 'hostVerifiedNoChange'))
   } else if (status.host.state === 'unpatched-supported') {
@@ -191,6 +221,11 @@ export async function runWizard(io, deps = {}) {
   if (await reportFresh()) out(T(locale, 'reportSaved', [reportPath]))
   if (r.error) { out('[error] ' + (r.error.message ?? r.error)); out(T(locale, 'failed')); return 1 }
   if ((r.status ?? 1) !== 0) { out(T(locale, 'failed')); return 1 }
-  out(sel.has('host') ? T(locale, 'complete') : T(locale, 'pluginOnlyDone'))
+  // A no-change outcome (drift between the preview and the in-lock re-read)
+  // must not read as a fresh install — the report's steps tell which it was.
+  const rep = await reportRead()
+  const noChange = !!(rep && Array.isArray(rep.steps) && rep.steps.length > 0 && rep.steps.every(s => /noop|skipped/i.test(String(s.detail ?? ''))))
+  if (noChange) out(T(locale, 'completeNoop'))
+  else out(sel.has('host') ? T(locale, 'complete') : T(locale, 'pluginOnlyDone'))
   return 0
 }

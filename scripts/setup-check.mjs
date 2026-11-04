@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SETUP = path.join(root, 'scripts', 'setup.mjs')
 const CHUNK_SRC = path.join(root, '.local/host-binary-patch-test/Hermes.app/Contents/Resources/app.asar.unpacked/dist/assets/layout-lXjPuTgt.js')
-const PLUGIN_SOURCE = path.join(root, 'plugin', 'hermes-style-plugin')
+const PLUGIN_SOURCE = path.join(root, 'plugin', 'hermes-output-enhancement')
 const PINNED = '2c2f82c100c6fa51090bc5b7d04787479db26d723202b91bb3ed72c94fc4771e'
 const POST = '5d47e594ed96dbe5679680ce94930a0b2933d63b8420ac139da04a229f46b125'
 const TX_DIR = path.join(root, '.local', 'setup-transactions')
@@ -49,14 +49,14 @@ async function makeApp(id) {
   return apps[id]
 }
 const ptOf = id => path.join(base, `pt-${id}`)
-const pluginDirOf = id => path.join(ptOf(id), 'hermes-style-plugin')
+const pluginDirOf = id => path.join(ptOf(id), 'hermes-output-enhancement')
 async function makePT(id, seed) {
   const pt = ptOf(id)
   await mkdir(pt, { recursive: true })
   if (seed === 'old') {
     await mkdir(pluginDirOf(id), { recursive: true })
     await writeFile(path.join(pluginDirOf(id), 'plugin.js'), '// old build bytes')
-    await writeFile(path.join(pluginDirOf(id), 'build-info.json'), JSON.stringify({ id: 'hermes-style-plugin', version: '0.0.1' }, null, 2))
+    await writeFile(path.join(pluginDirOf(id), 'build-info.json'), JSON.stringify({ id: 'hermes-output-enhancement', version: '0.0.1' }, null, 2))
   }
   return pt
 }
@@ -97,7 +97,7 @@ await caseRun('02-fresh-install-host-and-plugin', async () => {
   assert.equal(await sha(apps['02'].chunk), POST)
   assert.equal(await exists(path.join(pluginDirOf('02'), 'plugin.js')), true)
   const info = JSON.parse(await readFile(path.join(pluginDirOf('02'), 'build-info.json'), 'utf8'))
-  assert.equal(info.id, 'hermes-style-plugin')
+  assert.equal(info.id, 'hermes-output-enhancement')
   assert.equal(info.pluginSha256, sourceInfo.pluginSha256, 'installed plugin must be the verified source bytes')
   const tx = await latestTxOf('02')
   assert.equal(tx.status, 'installed')

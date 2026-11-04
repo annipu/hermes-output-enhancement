@@ -1,0 +1,13 @@
+{
+  "version": "0.1.3",
+  "id": "hermes-output-enhancement",
+  "defaultEnabled": false,
+  "cssSourceSha256": "a50c54a1dc2de3ae2af6b0791e8545e84db002c64d3cdf06a29c2f5065a05c42",
+  "pluginSha256": "1ef518090528f50086590f2e07ff32b9bef478f6b0b25e8f7356979b233d818a",
+  "files": [
+    "plugin.js",
+    "README.md",
+    "build-info.json"
+  ],
+  "scope": "Read-only assistant-reply CSS; no SDK requests, prompt changes, message processing, or storage API."
+}

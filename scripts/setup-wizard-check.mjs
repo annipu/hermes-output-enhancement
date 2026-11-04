@@ -3,6 +3,12 @@
 // the real setup.mjs against an isolated plugin target (never the working
 // app: components=plugin never invokes the host tool). Any failure fails the
 // whole run with a nonzero exit. Creates its own .local dirs.
+//
+// The wizard also consults a REAL plan adjudication (plugin-install --plan-json,
+// read-only) to label the plugin state (not installed / upgradable / already
+// latest / needs attention) and to short-circuit when everything is current.
+// Fixtures inject `pluginPlanResult` for the deterministic cases; the two real
+// integrations exercise the actual --plan-json subprocess path.
 import { strict as assert } from 'node:assert'
 import { writeFile, mkdir, rm, mkdtemp, readFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -23,14 +29,18 @@ class ScriptIO {
   async ask(p) { this.prompts.push(p); const a = this.answers.shift(); return a === undefined ? null : a }
 }
 
+const LATEST_PLAN = { ok: true, verdict: 'noop', planText: 'already at v0.1.2 with identical bytes — nothing to do', source: { version: '0.1.2', sha: 'a' }, target: { state: 'present', version: '0.1.2', sha: 'a' } }
+
 function makeDeps(over = {}) {
   const d = {
     out: [], saved: [], loaded: 'en', detected: 'en',
-    probes: { plugin: { state: 'absent', dir: '/x/plugins/hermes-style-plugin' }, host: { state: 'unpatched-supported' } },
-    probeCalls: [], spawns: [],
+    probes: { plugin: { state: 'absent', dir: '/x/plugins/hermes-output-enhancement' }, host: { state: 'unpatched-supported' } },
+    probeCalls: [], spawns: [], planCalls: [],
+    pluginPlanResult: { ok: true, verdict: 'upgrade', planText: '[plan] UPGRADE v0.1.0-alpha.2 -> v0.1.2', source: { version: '0.1.2', sha: 'a' }, target: { state: 'present', version: '0.1.0-alpha.2', sha: 'b' } },
     planResult: { status: 0, stdout: '[plan] plugin: install\n[dry-run] no changes written — re-run with --apply to execute.' },
     applyResult: { status: 0, stdout: '[ok] plugin installed\n[report] {"status":"installed"}' },
     reportFresh: async () => true,
+    reportRead: null,
     ...over,
   }
   d.deps = {
@@ -40,8 +50,10 @@ function makeDeps(over = {}) {
     detectLocale: () => d.detected,
     t,
     probe: async (app, pt) => { d.probeCalls.push([app, pt]); return d.probes },
+    plan: async opts => { d.planCalls.push(opts ?? {}); return d.pluginPlanResult },
     spawnSetup: args => { d.spawns.push(args); return d.spawns.length === 1 ? d.planResult : d.applyResult },
     reportFresh: d.reportFresh,
+    reportRead: d.reportRead ?? (async () => null),
     reportPath: '/x/setup-latest.json',
   }
   return d
@@ -63,7 +75,7 @@ await caseRun('01-menu-nine-languages-default-marked', async () => {
   const entries = d.out.filter(l => /^\s+\d+\.\s+\S/.test(l))
   assert.equal(entries.length, 9)
   assert.ok(entries.some(l => l.includes('English') && l.includes('←')))
-  assert.ok(joined(d).includes(t('en', 'pluginPresent').replace('{0}', '0.1.0-alpha.2')))
+  assert.ok(joined(d).includes(t('en', 'pluginPlanUpgrade').replace('{0}', '0.1.0-alpha.2').replace('{1}', '0.1.2')), 'status shows the real upgradable verdict')
   assert.ok(joined(d).includes(t('en', 'hostPatched')))
 })
 
@@ -167,16 +179,24 @@ await caseRun('14-host-no-app-label-and-plugin-only', async () => {
   assert.ok(d.spawns[0].join(' ').includes('--components=plugin'))
 })
 
-await caseRun('15-plugin-foreign-label', async () => {
-  const io = new ScriptIO(['', '', '', 'n']), d = makeDeps({ probes: { plugin: { state: 'foreign', dir: '/x/plugins/hermes-style-plugin' }, host: { state: 'patched-verified' } } })
-  assert.equal(await runWizard(io, d.deps), 0)
-  assert.ok(joined(d).includes(t('en', 'pluginForeign').replace('{0}', '/x/plugins/hermes-style-plugin')))
+await caseRun('15-plugin-refused-needs-attention', async () => {
+  const d = makeDeps({
+    probes: { plugin: { state: 'foreign', dir: '/x/plugins/hermes-output-enhancement' }, host: { state: 'patched-verified' } },
+    pluginPlanResult: { ok: true, verdict: 'refused', reason: 'refuse: the plugin directory is a symlink — resolve it manually before installing here (intentionally not overridable with --force).' },
+  })
+  const io = new ScriptIO(['', '', ''])
+  assert.equal(await runWizard(io, d.deps), 1, 'a refused plan exits nonzero')
+  assert.ok(joined(d).includes(t('en', 'pluginPlanRefused').split('{0}')[0]), 'needs-attention label')
+  assert.ok(joined(d).includes('symlink'), 'the refusal reason is surfaced verbatim')
+  assert.equal(io.prompts.length, 3, 'no install question after a refused plan')
+  assert.equal(d.spawns.length, 0, 'no dry-run after a refused plan')
 })
 
-await caseRun('16-custom-paths-reach-probe-and-spawn', async () => {
+await caseRun('16-custom-paths-reach-probe-plan-and-spawn', async () => {
   const io = new ScriptIO(['', '/tmp/fake.app', '/tmp/fake-pt', 'y', 'n', '', '', 'n']), d = makeDeps()
   assert.equal(await runWizard(io, d.deps), 0)
   assert.deepEqual(d.probeCalls, [['/tmp/fake.app', '/tmp/fake-pt']], 'status is read for the CHOSEN paths')
+  assert.deepEqual(d.planCalls, [{ targetBase: '/tmp/fake-pt' }], 'the plan adjudicates the CHOSEN target')
   assert.ok(d.spawns[0].join(' ').includes('--app=/tmp/fake.app') && d.spawns[0].join(' ').includes('--plugin-target=/tmp/fake-pt'))
 })
 
@@ -285,9 +305,64 @@ await caseRun('27-corrupt-pref-safely-ignored', async () => {
   }
 })
 
+// --- short-circuit & plan-driven paths -------------------------------------
+
+await caseRun('30-all-latest-short-circuit', async () => {
+  const d = makeDeps({ probes: { plugin: { state: 'present', version: '0.1.2' }, host: { state: 'patched-verified' } }, pluginPlanResult: LATEST_PLAN })
+  const io = new ScriptIO(['', '', ''])
+  assert.equal(await runWizard(io, d.deps), 0)
+  assert.ok(joined(d).includes(t('en', 'pluginPlanLatest').replace('{0}', '0.1.2')), 'latest label carries the version')
+  assert.ok(joined(d).includes(t('en', 'hostPatched')))
+  assert.ok(joined(d).includes(t('en', 'allUpToDate')), 'short-circuit message')
+  assert.equal(io.prompts.length, 3, 'no install/host/confirm questions when everything is current')
+  assert.equal(d.spawns.length, 0, 'no dry-run when everything is current')
+})
+
+await caseRun('31-plugin-latest-host-unpatched-skips-plugin-question', async () => {
+  const d = makeDeps({ pluginPlanResult: LATEST_PLAN })
+  const io = new ScriptIO(['', '', '', 'y', 'y'])
+  assert.equal(await runWizard(io, d.deps), 0)
+  assert.ok(!io.prompts.some(p => p.startsWith(t('en', 'askPlugin'))), 'plugin question skipped when already latest')
+  assert.equal(io.prompts[3], t('en', 'askHost') + ' ', 'host question follows the paths directly')
+  assert.ok(d.spawns[0].join(' ').includes('--components=host') && !d.spawns[0].join(' ').includes(',plugin'))
+  assert.ok(joined(d).includes(t('en', 'complete')))
+})
+
+await caseRun('32-plugin-latest-host-unknown-nothing-selected', async () => {
+  const d = makeDeps({ probes: { plugin: { state: 'present', version: '0.1.2' }, host: { state: 'unknown' } }, pluginPlanResult: LATEST_PLAN })
+  const io = new ScriptIO(['', '', ''])
+  assert.equal(await runWizard(io, d.deps), 0)
+  assert.ok(joined(d).includes(t('en', 'pluginPlanLatest').replace('{0}', '0.1.2')), 'plugin-latest stays visible')
+  assert.ok(joined(d).includes(t('en', 'unknownHostNote')), 'host limitation stays visible — not buried by an "all current" message')
+  assert.ok(joined(d).includes(t('en', 'nothingSelected')))
+  assert.equal(d.spawns.length, 0)
+})
+
+await caseRun('33-plan-source-error-exit-1', async () => {
+  const d = makeDeps({ pluginPlanResult: { ok: false, error: 'source build missing — run the plugin build first' } })
+  const io = new ScriptIO(['', '', ''])
+  assert.equal(await runWizard(io, d.deps), 1)
+  assert.ok(joined(d).includes('source build missing'))
+  assert.ok(joined(d).includes(t('en', 'failed')))
+  assert.equal(d.spawns.length, 0)
+})
+
+await caseRun('34-complete-noop-drift-wording', async () => {
+  const d = makeDeps({
+    probes: VERIFIED,
+    applyResult: { status: 0, stdout: '[plan] plugin: noop\n[report] {"status":"installed"}' },
+    reportRead: async () => ({ steps: [{ name: 'plugin-install', ok: true, detail: 'noop' }] }),
+  })
+  const io = new ScriptIO(['', '', '', 'y', 'y'])
+  assert.equal(await runWizard(io, d.deps), 0)
+  assert.ok(joined(d).includes(t('en', 'completeNoop')), 'a no-change outcome must not read as a fresh install')
+  assert.ok(!joined(d).includes(t('en', 'pluginOnlyDone')))
+})
+
 // --- REAL-fixture integrations: real setup.mjs subprocess, isolated plugin
 // target, components=plugin (never invokes the host tool — the working app is
-// only ever probed read-only). ---
+// only ever probed read-only). The plan step also runs the REAL
+// plugin-install --plan-json subprocess against the isolated target. ---
 const intDeps = tmp => {
   const d = { out: [], saved: [], spawns: [] }
   d.deps = {
@@ -312,7 +387,8 @@ await caseRun('28-real-preview-decline-no-write', async () => {
     assert.equal(code, 0)
     assert.equal(d.spawns.length, 1, 'dry-run only')
     assert.ok(d.spawns[0].join(' ').includes(`--plugin-target=${tmp}`) && !d.spawns[0].includes('--apply'))
-    const dir = path.join(tmp, 'hermes-style-plugin')
+    assert.ok(joined(d).includes(t('en', 'pluginPlanInstall').split('{0}')[0]), 'the real plan labels the absent target')
+    const dir = path.join(tmp, 'hermes-output-enhancement')
     const st = await (await import('node:fs/promises')).stat(dir).catch(() => null)
     assert.equal(st, null, 'declined preview must leave the isolated target untouched')
   } finally { await rm(tmp, { recursive: true, force: true }) }
@@ -327,8 +403,9 @@ await caseRun('29-real-full-execute-isolated-target', async () => {
     assert.equal(code, 0)
     assert.equal(d.spawns.length, 2, 'dry-run then apply')
     assert.ok(d.spawns[1].includes('--apply'))
-    const info = JSON.parse(await readFile(path.join(tmp, 'hermes-style-plugin', 'build-info.json'), 'utf8'))
-    assert.equal(info.version, '0.1.0-alpha.2')
+    const info = JSON.parse(await readFile(path.join(tmp, 'hermes-output-enhancement', 'build-info.json'), 'utf8'))
+    const srcInfo = JSON.parse(await readFile(path.join(root, 'plugin', 'hermes-output-enhancement', 'build-info.json'), 'utf8'))
+    assert.equal(info.version, srcInfo.version, 'installed version matches the current distribution')
     assert.ok(joined(d).includes(t('en', 'pluginOnlyDone')))
   } finally { await rm(tmp, { recursive: true, force: true }) }
 })
