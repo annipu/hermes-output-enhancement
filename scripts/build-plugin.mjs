@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+
+// Version rule (2026-11-04): 0.1.x with integer x in [1, 99999], no leading zeros.
+if (!/^0\.1\.([1-9]\d{0,4})$/.test(version)) {
+  throw new Error(`version must match 0.1.x with x an integer in [1, 99999] (got ${JSON.stringify(version)})`)
+}
 const candidate = await readFile(path.join(root, 'styles/p1-candidate.css'), 'utf8')
 const scope = '[data-slot="aui_assistant-message-content"]'
 if (!candidate.includes("[data-style-probe='candidate']")) throw new Error('Missing reviewed CSS scope')

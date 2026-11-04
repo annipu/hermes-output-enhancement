@@ -1,9 +1,9 @@
 {
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.2",
   "id": "hermes-style-plugin",
   "defaultEnabled": false,
-  "cssSourceSha256": "cda2711aa8796a25910ae35b74a9ff17420bdd25cc661565d4ab3bdd51e81e49",
-  "pluginSha256": "e3e921a533eb19e76de57928aafa520b17ca54ec263ddc7b5302ff7e39453d6e",
+  "cssSourceSha256": "a50c54a1dc2de3ae2af6b0791e8545e84db002c64d3cdf06a29c2f5065a05c42",
+  "pluginSha256": "65c3fdfa072b28f4c402e219de00a862d91fa9a04a3708059237f1756b454891",
   "files": [
     "plugin.js",
     "README.md",

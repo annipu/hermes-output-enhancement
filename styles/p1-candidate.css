@@ -1,24 +1,37 @@
 /* P1 experiment only. This is not an installed plugin or an accepted default.
-   Scope stays inside the candidate transcript; app chrome is untouched. */
+   Scope stays inside the candidate transcript; app chrome is untouched.
+   0.1.1: OpenCode colors for plain headings/bold/italic; the inline-code
+   override is removed (native styling restored); the table keeps its accepted
+   layout while header text inherits the native muted tone; the thinking area
+   stays covered on purpose (user-confirmed 2026-11-04). */
 [data-style-probe='candidate'] {
-  --readable-heading: light-dark(#704098, #c3a4e7);
-  --readable-emphasis: light-dark(#92500f, #e7b176);
-  --readable-code: light-dark(#21663c, #a5d29a);
+  --readable-heading: light-dark(#704098, #9d7cd8);
+  --readable-emphasis: light-dark(#d68c27, #f5a742);
+  --readable-italic: light-dark(#b0851f, #e5c07b);
 }
 
-[data-style-probe='candidate'] .aui-md :is(h1, h2, h3, h4) {
+/* Color only — font, size, weight, line-height, spacing stay native/theme.
+   GFM alert bodies are native components: excluded. The thinking area is NOT
+   excluded (user-confirmed keep). */
+[data-style-probe='candidate'] .aui-md :is(h1, h2, h3, h4, h5, h6):not([data-slot='aui_markdown-alert'] *) {
   color: var(--readable-heading);
 }
 
-[data-style-probe='candidate'] .aui-md :is(strong, [data-streamdown='strong']) {
+[data-style-probe='candidate'] .aui-md :is(strong, [data-streamdown='strong']):not([data-slot='aui_markdown-alert'] *) {
   color: var(--readable-emphasis);
-  font-weight: 650;
 }
 
-[data-style-probe='candidate'] .aui-md :not(pre) > code {
-  color: var(--readable-code);
+[data-style-probe='candidate'] .aui-md em:not([data-slot='aui_markdown-alert'] *) {
+  color: var(--readable-italic);
 }
 
+/* Inline code: no rules here on purpose — the 0.1.0-alpha green override was
+   removed; Hermes' native inline-code styling (radius, padding, mono, font)
+   applies unmodified. */
+
+/* Table: accepted layout only. Borders use theme variables; header text
+   inherits the native muted tone (color/font-weight overrides removed in
+   0.1.1). */
 [data-style-probe='candidate'] .aui-md-table {
   border-color: var(--ui-stroke-secondary);
 }
@@ -41,9 +54,7 @@
 }
 
 [data-style-probe='candidate'] .aui-md-table th {
-  color: var(--foreground);
   font-size: var(--conversation-text-font-size);
-  font-weight: 650;
 }
 
 /* The production header clips its inner span. Preserve all of the label here. */
