@@ -13,7 +13,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 ## Current status
 
 - Version `0.1.2`, **off by default**; opt in via the app's own plugin toggle.
-- v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, links and strikethrough kept fully native.
+- v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, link colors and strikethrough kept native.
 - The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-style-plugin/`) — see *Install*; no build step is needed.
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
