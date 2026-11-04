@@ -1,4 +1,4 @@
-# hermes-plugin-contentstyle
+# hermes-output-enhancement
 
 Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent.nousresearch.com/docs). It adjusts how **existing** Markdown renders in assistant replies — headings, bold and italic emphasis and tables — and nothing else.
 
@@ -12,9 +12,9 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 ## Current status
 
-- Version `0.1.2`, **off by default**; opt in via the app's own plugin toggle.
+- Version `0.1.3`, **off by default**; opt in via the app's own plugin toggle. (v0.1.3 renames the plugin to **Hermes Output Enhancement** with stable id `hermes-output-enhancement` and a new install directory; v0.1.2 and earlier shipped as `hermes-style-plugin`.)
 - v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, link colors and strikethrough kept native.
-- The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-style-plugin/`) — see *Install*; no build step is needed.
+- The repository ships this exact verified build as a pre-built, installable distribution directory (`plugin/hermes-output-enhancement/`) — see *Install*; no build step is needed.
 - Native verification on one stock macOS arm64 build (Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
 - Known limitation on stock builds: toggling the plugin does **not** sync to other already-open windows until the app is restarted. This is Hermes host behavior (`plugins-store.ts` persists the decision but applies it only in the toggling window), not something this plugin can fix from inside the plugin sandbox.
 - A host-side fix for that limitation has been developed and verified in a patched Hermes build: **12 of 12 native checks passed** there, including bidirectional live sync between two real windows, rapid toggles, re-enable after disable, restart, uninstall and full content fidelity (identical plugin bytes). The patch ships in this repository under [`host-patch/`](host-patch/) with usage notes (generated against a pinned Hermes source revision; ANNIPU-maintained, not submitted upstream). Stock Hermes builds keep the limitation until they include such a fix.
@@ -53,7 +53,7 @@ Requires Node.js 22+. No npm dependencies.
 npm run build
 ```
 
-This regenerates `plugin/hermes-style-plugin/plugin.js` and `build-info.json`
+This regenerates `plugin/hermes-output-enhancement/plugin.js` and `build-info.json`
 from `styles/p1-candidate.css`. The stylesheet is the source of truth; edit it,
 not the generated file. The committed `plugin/` files are the pre-built
 distribution (see *Install*) — most users never need this step.
@@ -61,7 +61,7 @@ distribution (see *Install*) — most users never need this step.
 ## Install
 
 No build is needed: the repository ships the natively tested plugin as a
-pre-built distribution directory, `plugin/hermes-style-plugin/`. From a
+pre-built distribution directory, `plugin/hermes-output-enhancement/`. From a
 checkout of this repository (or its "Download ZIP"):
 
 ```bash
@@ -164,25 +164,33 @@ target, verified, then switched; a failed switch restores the previous
 directory. Backups go to `.local/plugin-backups/` inside your checkout.
 
 This places the plugin at the application-level directory shared across agent
-profiles (default `<home>/.hermes/desktop-plugins/hermes-style-plugin/`; pass
+profiles (default `<home>/.hermes/desktop-plugins/hermes-output-enhancement/`; pass
 `--target=` to override). Keep the folder name — it matches the plugin id. The
 app watches this directory: the plugin appears in Settings → Capabilities →
 Plugins, disabled by default. Enable/disable with its toggle; Uninstall on the
 plugin's detail page removes the directory (or use the uninstall command above,
 which backs it up first).
 
-Manual alternative: copy the whole `plugin/hermes-style-plugin/` directory to
+Manual alternative: copy the whole `plugin/hermes-output-enhancement/` directory to
 the location above yourself — those three files are all it takes (no npm
 package, no separate CSS file or manifest). Installing the plugin does not
 include the host-side multi-window fix: on stock Hermes builds the
 window-sync limitation above remains; `host-patch/` is a separate,
 version-gated component.
 
+## Migrating from the old identity (≤ 0.1.2)
+
+The plugin was renamed in v0.1.3 — new stable id `hermes-output-enhancement`, new install directory. Old and new are separate plugins to Hermes, so:
+
+1. Disable **Hermes Output Style Enhancement** in Settings → Capabilities → Plugins, then quit Hermes.
+2. Delete the old directory: `rm -rf ~/.hermes/desktop-plugins/hermes-style-plugin`.
+3. Install this version (see *Install*). The new plugin starts **off** by default — the old toggle preference is not inherited.
+
 ## Compatibility
 
 The stylesheet targets the app's current DOM structure and may need adjusting after Hermes updates. Only the build listed under *Current status* has been native-tested; treat other versions as unverified.
 
-The repository ships the pre-built distribution directory `plugin/hermes-style-plugin/` (the exact bytes that passed native verification). `npm run build` regenerates `plugin.js` and `build-info.json` from the stylesheet; a rebuilt `plugin.js` only counts as the tested candidate when its SHA-256 matches the shipped `pluginSha256`.
+The repository ships the pre-built distribution directory `plugin/hermes-output-enhancement/` (the exact bytes that passed native verification). `npm run build` regenerates `plugin.js` and `build-info.json` from the stylesheet; a rebuilt `plugin.js` only counts as the tested candidate when its SHA-256 matches the shipped `pluginSha256`.
 
 ## License
 

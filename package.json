@@ -1,6 +1,6 @@
 {
   "name": "hermes-plugin-contentstyle",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -16,8 +16,8 @@
     "host:patch:check": "node scripts/host-binary-patch-check.mjs",
     "setup": "node scripts/setup.mjs",
     "setup:check": "node scripts/setup-check.mjs",
-  "setup:wizard": "node scripts/setup.mjs",
-  "setup:wizard:check": "node scripts/setup-wizard-check.mjs",
-  "i18n:check": "node scripts/setup-i18n.mjs --check"
+    "setup:wizard": "node scripts/setup.mjs",
+    "setup:wizard:check": "node scripts/setup-wizard-check.mjs",
+    "i18n:check": "node scripts/setup-i18n.mjs --check"
   }
 }
