@@ -26,7 +26,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 Within assistant replies only — ordinary paragraphs, user messages and app chrome are untouched:
 
-- Headings H1–H6: violet accent in both themes — deep `#704098` on light, `#9d7cd8` on dark; the same hue family across themes, differing only in lightness.
+- Headings H1–H6: violet accent in both themes — deep `#704098` on light, `#9d7cd8` on dark; same violet family, adjusted for each theme.
 - Bold: orange accent (`#d68c27` light / `#f5a742` dark). Italic: gold (`#b0851f` light / `#e5c07b` dark). Font weights stay native — nothing is forced bolder.
 - Inline code: left fully native (the tinted-chip styling of earlier alphas was removed in v0.1.2).
 - Tables: layout enhancements kept — distinct header row, full grid, roomier cells, smarter first-column width for two-column tables — with header text back to its native muted tone. All data is preserved; wide tables scroll instead of being crushed.
