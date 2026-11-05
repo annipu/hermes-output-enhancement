@@ -1,0 +1,5 @@
+name: hermes-output-enhancement
+version: "0.1.4"
+description: "Display-only styling for existing Markdown in Hermes Desktop assistant replies — theme-aware light/dark headings, emphasis and readable tables. Reply content is never modified: no model calls, session reads or history writes. Off by default; toggle in Settings → Capabilities → Plugins."
+author: "ANNIPU"
+requires_hermes: ">=0.22.6"

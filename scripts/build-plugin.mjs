@@ -11,6 +11,12 @@ const { version } = JSON.parse(await readFile(path.join(root, 'package.json'), '
 if (!/^0\.1\.([1-9]\d{0,4})$/.test(version)) {
   throw new Error(`version must match 0.1.x with x an integer in [1, 99999] (got ${JSON.stringify(version)})`)
 }
+const manifest = await readFile(path.join(root, 'plugin/hermes-output-enhancement/plugin.yaml'), 'utf8')
+const manifestVersion = manifest.match(/^version:\s*"?([0-9][^"\s]*)"?\s*$/m)?.[1]
+if (manifestVersion !== version) {
+  throw new Error(`plugin.yaml version ${JSON.stringify(manifestVersion)} must equal package.json version ${JSON.stringify(version)}`)
+}
+if (!/^requires_hermes:/m.test(manifest)) throw new Error('plugin.yaml must declare requires_hermes')
 const candidate = await readFile(path.join(root, 'styles/p1-candidate.css'), 'utf8')
 const scope = '[data-slot="aui_assistant-message-content"]'
 if (!candidate.includes("[data-style-probe='candidate']")) throw new Error('Missing reviewed CSS scope')
@@ -45,13 +51,13 @@ export default {
 }
 `
 const out = path.join(root, 'plugin/hermes-output-enhancement')
-await mkdir(out, { recursive: true })
-await writeFile(path.join(out, 'plugin.js'), source)
+await mkdir(path.join(out, 'desktop'), { recursive: true })
+await writeFile(path.join(out, 'desktop/plugin.js'), source)
 const info = {
   version, id: 'hermes-output-enhancement', defaultEnabled: false,
   cssSourceSha256: createHash('sha256').update(candidate).digest('hex'),
   pluginSha256: createHash('sha256').update(source).digest('hex'),
-  files: ['plugin.js', 'README.md', 'build-info.json'],
+  files: ['desktop/plugin.js', 'plugin.yaml', 'README.md', 'build-info.json'],
   scope: 'Read-only assistant-reply CSS; no SDK requests, prompt changes, message processing, or storage API.',
 }
 await writeFile(path.join(out, 'build-info.json'), JSON.stringify(info, null, 2) + '\n')
