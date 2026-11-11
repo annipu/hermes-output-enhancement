@@ -1,9 +1,9 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "id": "hermes-output-enhancement",
   "defaultEnabled": false,
   "cssSourceSha256": "a50c54a1dc2de3ae2af6b0791e8545e84db002c64d3cdf06a29c2f5065a05c42",
-  "pluginSha256": "1ef518090528f50086590f2e07ff32b9bef478f6b0b25e8f7356979b233d818a",
+  "pluginSha256": "c6fb5ed4ba93d22ac79c4401e50d5226f4a1403b17b3f5d3c79294594f9990c7",
   "files": [
     "desktop/plugin.js",
     "plugin.yaml",
