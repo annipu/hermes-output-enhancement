@@ -13,7 +13,7 @@ Style-only content presentation plugin for [Hermes Desktop](https://hermes-agent
 
 ## Current status
 
-- Version `0.1.5`, **off by default**; opt in via the app's own plugin toggle. (v0.1.5 aligns the plugin description with what the CSS actually styles — headings, bold and italic text, tables — and states explicitly that inline code keeps the native Hermes styling, as it has since v0.1.1. v0.1.3 renamed the plugin to **Hermes Output Enhancement** with stable id `hermes-output-enhancement` and a new install directory; v0.1.2 and earlier shipped as `hermes-style-plugin`.)
+- Version `0.1.6`, **off by default**; opt in via the app's own plugin toggle. (v0.1.6 restores the inline-code green text color — `light-dark(#21663c, #a5d29a)`, text color only, fenced code untouched; v0.1.5 aligned the plugin description with what the CSS actually styles — headings, bold and italic text, tables — and stated that inline code keeps the native Hermes styling, as it had since v0.1.1. v0.1.3 renamed the plugin to **Hermes Output Enhancement** with stable id `hermes-output-enhancement` and a new install directory; v0.1.2 and earlier shipped as `hermes-style-plugin`.)
 - v0.1.2 color scheme: component-level 29/29 checks and an isolated native four-quadrant run (light/dark × on/off, 22/22 checks) verified headings/bold/italic coloring with inline code, font weights, list markers, alerts, link colors and strikethrough kept native.
 - The repository ships the natively tested build as a pre-built distribution directory (`plugin/hermes-output-enhancement/`, plugin-catalog layout with `plugin.yaml` + `desktop/plugin.js`) — see *Install*; no build step is needed.
 - Native verification on stock macOS arm64 builds of the Hermes 0.22.x line (most recently 0.22.6 / Electron 44.9.3 / Chromium 152.0.7977.167 / Node 24.22.0): **10 of 11 checks passed**.
@@ -27,7 +27,7 @@ Within assistant replies only — ordinary paragraphs, user messages and app chr
 
 - Headings H1–H6: violet accent in both themes — deep `#704098` on light, `#9d7cd8` on dark; same violet family, adjusted for each theme.
 - Bold: orange accent (`#d68c27` light / `#f5a742` dark). Italic: gold (`#b0851f` light / `#e5c07b` dark). Font weights stay native — nothing is forced bolder.
-- Inline code: left fully native (the tinted-chip styling of earlier alphas was removed in v0.1.2).
+- Inline code: green text color restored in v0.1.6 (`light-dark(#21663c, #a5d29a)`, text color only; the tinted-chip styling of earlier alphas stays removed, fenced code blocks are untouched).
 - Tables: layout enhancements kept — distinct header row, full grid, roomier cells, smarter first-column width for two-column tables — with header text back to its native muted tone. All data is preserved; wide tables scroll instead of being crushed.
 - Exclusions: alerts/callouts, code blocks, list markers, strikethrough and link colors stay native in every tested state; emphasis nested inside a link follows the emphasis color (visible in the snapshots below).
 
