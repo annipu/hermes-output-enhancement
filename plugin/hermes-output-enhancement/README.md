@@ -11,8 +11,7 @@ layout. No npm packages, build steps or backend components are involved:
 - `README.md` — this file.
 
 What it does: applies CSS to existing Markdown nodes in assistant replies
-only (headings, bold and italic text, tables); inline code keeps the
-native Hermes styling. All text, order, table rows
+only (headings, bold and italic text, inline code, tables). All text, order, table rows
 and columns, code whitespace and link text/targets stay exactly as produced
 by the model. Enabling adds exactly one `<style>` element to the page;
 disabling removes it via `ctx.onDispose`. The plugin imports no SDK

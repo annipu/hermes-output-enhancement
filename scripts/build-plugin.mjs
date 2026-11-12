@@ -33,7 +33,7 @@ const ID = 'hermes-output-enhancement'
 export default {
   id: ID,
   name: 'Hermes Output Enhancement',
-  description: 'Enhances how existing Markdown in assistant replies is displayed — headings, bold and italic text get theme-aware light/dark colors; tables get a more readable layout. Inline code keeps the native Hermes styling. Display only: reply content is never modified; no model calls, session reads or history writes. Off by default; toggle in Settings → Capabilities → Plugins.',
+  description: 'Enhances how existing Markdown in assistant replies is displayed — headings, bold and italic text, and inline code get theme-aware light/dark colors; tables get a more readable layout. Display only: reply content is never modified; no model calls, session reads or history writes. Off by default; toggle in Settings → Capabilities → Plugins.',
   defaultEnabled: false,
   register(ctx) {
     if (typeof ctx?.onDispose !== 'function') {

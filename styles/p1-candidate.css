@@ -1,5 +1,10 @@
 /* P1 experiment only. This is not an installed plugin or an accepted default.
    Scope stays inside the candidate transcript; app chrome is untouched.
+   0.1.6: inline-code text color restored (maintainer decision 2026-11-12) —
+   green light-dark(#21663c, #a5d29a), text color only, same values as
+   0.1.0-alpha; chip background, radius and font stay native, fenced code
+   untouched (its code sits inside <pre>; DOM-verified on the 3b421578
+   renderer that :not(pre) > code matches only p/li-parented inline code).
    0.1.1: OpenCode colors for plain headings/bold/italic; the inline-code
    override is removed (native styling restored); the table keeps its accepted
    layout while header text inherits the native muted tone; the thinking area
@@ -8,6 +13,7 @@
   --readable-heading: light-dark(#704098, #9d7cd8);
   --readable-emphasis: light-dark(#d68c27, #f5a742);
   --readable-italic: light-dark(#b0851f, #e5c07b);
+  --readable-code: light-dark(#21663c, #a5d29a);
 }
 
 /* Color only — font, size, weight, line-height, spacing stay native/theme.
@@ -25,9 +31,14 @@
   color: var(--readable-italic);
 }
 
-/* Inline code: no rules here on purpose — the 0.1.0-alpha green override was
-   removed; Hermes' native inline-code styling (radius, padding, mono, font)
-   applies unmodified. */
+/* Inline code: text color only (restored 0.1.6, maintainer decision) — the
+   0.1.0-alpha green returns for inline code; radius, padding, mono, font and
+   any chip background stay native. Fenced code is untouched: its code sits
+   inside <pre>, excluded by :not(pre) > code (DOM-verified on the 3b421578
+   renderer — only p/li-parented inline code matches). */
+[data-style-probe='candidate'] .aui-md :not(pre) > code:not([data-slot='aui_markdown-alert'] *) {
+  color: var(--readable-code);
+}
 
 /* Table: accepted layout only. Borders use theme variables; header text
    inherits the native muted tone (color/font-weight overrides removed in
